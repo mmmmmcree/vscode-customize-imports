@@ -1,36 +1,18 @@
-/*
-.monaco-editor .margin, .monaco-editor-background, .monaco-editor .inputarea.ime-input {
-  background: transparent;
-} */
-
-/* Add the subtle gradient to the editor background */
-/* .monaco-editor {
-  background-color: transparent !important;
-  background-image: linear-gradient(to bottom, #2a2139 75%, #34294f);
-  background-size: auto 100vh;
-  background-position: top;
-  background-repeat: no-repeat;
-} */
-
 /* 标点符号和未识别字符 */
 .mtk1 {
-  color: #fdfdfd;
   text-shadow: 0 0 2px #e98aa7, 0 0 1px #f081ac75, 0 0 1px #f77ac775;
 }
 .mtk2 {
-  color: #fdfdfd;
   text-shadow: 0 0 1px #e98aa7, 0 0 1px #f081ac75, 0 0 1px #f77ac775;
 }
 /* 注释 */
 .mtk3 {
-  /* animation: pop3 0.6s ease; */
+  animation: pop3 0.6s ease;
 }
 /* 变量 */
 .mtk3 {
-  color: #fdfdfd;
   text-shadow: 0 0 2px #ff4747;
 }
-
 /* 关键字 */
 .mtk4 {
   text-shadow: 0 0 2px #d642ca;
@@ -41,26 +23,21 @@
 }
 /* 类 */
 .mtk6 {
-  color: #fdfdfd;
   text-shadow: 0 0 2px #ada63c, 0 0 5px #fdfb7b75, 0 0 2px #f5e49b75;
 }
 /* 函数名 */
 .mtk7 {
-  color: #fff5f6;
   text-shadow: 0 0 2px #69c5f0;
 }
 .mtk8 {
-  color: #fff5f6;
   text-shadow: 0 0 2px #517ee0, 0 0 5px #7999ff75, 0 0 2px #8982ee75;
 }
 /* 字符串 */
 .mtk9 {
-  color: #e4e8f4;
   text-shadow: 0 0 2px #50a040, 0 0 5px #40eb6b75, 0 0 2px #93fd9c75;
 } 
 /* 枚举常量 */
 .mtk10 {
-  color: #e4e8f4;
   text-shadow: 0 0 2px #3cb1ab, 0 0 5px #4ef0e275, 0 0 2px #7ffff475;
 }
 
