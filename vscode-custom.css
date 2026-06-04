@@ -1,0 +1,146 @@
+span.mtk16 {
+  text-shadow: 0 0 20px #4ec9b0;
+}
+
+div.quick-input-widget {
+  --vscode-quickInput-background: transparent !important;
+
+  backdrop-filter: blur(20px) brightness(140%);
+}
+
+div.monaco-inputbox {
+  --vscode-input-background: transparent !important;
+}
+
+div.focused {
+  --vscode-quickInputList-focusBackground: #04395e80 !important;
+}
+
+div.active-line-number {
+  --vscode-editorLineNumber-activeForeground: #45c4ff !important;
+  text-shadow: 0 0 20px #fff;
+}
+
+div.sticky-widget {
+  --vscode-editorStickyScroll-background: transparent !important;
+  backdrop-filter: blur(20px) brightness(110%);
+}
+
+div.monaco-hover {
+  --vscode-editorHoverWidget-background: transparent !important;
+  backdrop-filter: blur(20px) brightness(110%);
+}
+
+div.cursor {
+  animation: 25s linear infinite bp-animation;
+  /* Use the same starting color as your particles */
+  background: linear-gradient(
+    rgb(103, 250, 243), /* Your startColor - light blue */
+    rgb(182, 110, 255)  /* Your endColor - purple */
+  );
+  background-size: 100% 200%;
+  border-radius: 2px;
+  overflow: visible !important;
+}
+
+div.cursor::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: inherit;
+  background-size: 100% 200%;
+  border-radius: 3px;
+  transform: scale(140%, 120%);
+  filter: blur(4px) brightness(200%);
+  z-index: -1;
+  animation: 25s linear infinite bp-animation; /* Same animation as cursor */
+}
+
+@keyframes bp-animation {
+  0% {filter: hue-rotate(0deg);}
+  100% {filter: hue-rotate(360deg);}
+}
+
+@keyframes pop1 {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.mtk1 {
+  animation: pop1 0.6s ease;
+}
+@keyframes pop2 {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.mtk2 {
+  animation: pop2 0.6s ease;
+}
+@keyframes pop3 {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.mtk3 {
+  animation: pop3 0.6s ease;
+}
+@keyframes pop4 {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.mtk4 {
+  animation: pop4 0.6s ease;
+}
+@keyframes pop5 {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.mtk5 {
+  animation: pop5 0.6s ease;
+}
+@keyframes pop6 {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.mtk6 {
+  animation: pop6 0.6s ease;
+}
+@keyframes pop7 {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.mtk7 {
+  animation: pop7 0.6s ease;
+}
+@keyframes pop8 {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.mtk8 {
+  animation: pop8 0.6s ease;
+}
+@keyframes pop9 {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.mtk9 {
+  animation: pop9 0.6s ease;
+}
+@keyframes pop10 {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.mtk10 {
+  animation: pop10 0.6s ease;
+}
