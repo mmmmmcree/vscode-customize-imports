@@ -1,76 +1,77 @@
-'use strict';
-/* ============================================================================
- * VSCode Cursor Trail Effect
- *   - Catmull-Rom→Bezier 平滑光带；头粗尾细的锥形 + 头/尾 alpha 渐入/渐隐
- *   - 离屏 canvas + 双层 ctx.filter blur 合成 bloom 泛光（'lighter' 模式）
- *   - 视口级 fixed canvas，多光标共享同一份 bloom 合成
- *   - HSL 直存 + 帧节流，hue 时间驱动与帧率解耦
+'use strict';/* ============================================================================
+ * VSCode Cursor Trail + Smoke（custom-css 注入）
+ *   - 弹簧链跟随：头粗尾细的长条光带（还原 77caafe 形态）
+ *   - Catmull-Rom→Bezier 平滑 + shadowBlur 贴边泛光（trail-effect2 风格，单次填充不过曝）
+ *   - 物理基于固定步长：任意刷新率手感一致，高刷下拖尾不会瞬间收尾
+ *   - 烟雾只从链尾尖喷发，浓度随光标速度提升，绝不出现在拖尾中段
+ *   - 视口级 fixed canvas
  *
- * 颜色一致性约束：
- *   - START_COLOR_HSL / END_COLOR_HSL  ↔  vscode-custom.css 中 div.cursor 的 linear-gradient
- *   - CURSOR_VISUAL_X/Y_SCALE          ↔  vscode-custom.css 中 div.cursor::after 的 transform: scale
+ * 与 vscode-custom.css 的一致性约束：
+ *   START/END_COLOR_HSL       ↔ div.cursor 的 linear-gradient
+ *   CURSOR_VISUAL_X/Y_SCALE   ↔ div.cursor::after 的 transform: scale
  * ========================================================================== */
 
 (() => {
   /* --------------------------- CONFIG --------------------------- */
   const CONFIG = {
-    TRAIL_LENGTH: 24,
+    TRAIL_LENGTH: 24,                  // 链粒子数（拖尾长度旋钮之一：越多越长）
     STYLE: 'block',                    // 'block' | 'line'
-    CURSOR_POLLING_MS: 150,            // DOM 中 .cursor 节点出现/消失的轮询周期
-    // 颜色（HSL 形式，避免 per-frame 的 RGB↔HSL 来回转换）
-    // 与 vscode-custom.css 中 div.cursor 渐变同源：
-    //   rgb(103,250,243) ≈ hsl(177,93%,69%)
-    //   rgb(182,110,255) ≈ hsl(266,100%,72%)
-    START_COLOR_HSL: { h: 177, s: 93, l: 69 },
-    END_COLOR_HSL:   { h: 266, s: 100, l: 72 },
-    HUE_SPEED_DEG_PER_SEC: 30,         // 时间驱动，与帧率无关
-    HUE_UPDATE_EVERY: 2,               // 每 N 帧才刷新一次颜色字符串数组
-    // 几何（光带宽度沿"运动方向的法线"展开，垂直运动时使用 sizeX，水平运动时使用 sizeY）
-    // 光标 DOM 的 clientWidth/Height 不包含 vscode-custom.css 中 div.cursor::after 的 scale(140%, 120%)
-    // 视觉发光区域，所以这里把"可见光标尺寸"按对应缩放放大，让拖尾与发光块对齐：
-    CURSOR_VISUAL_X_SCALE: 1.4,        // 与 vscode-custom.css 的 ::after transform: scaleX 一致
-    CURSOR_VISUAL_Y_SCALE: 1.2,        // 与 vscode-custom.css 的 ::after transform: scaleY 一致
-    BAND_WIDTH_RATIO: 1.0,             // 长条整段的均匀宽度（× 光标可见轮廓宽度）；尾部以同半径圆弧封口
-    HEAD_FADE_PARTICLES: 3,            // 前 N 个粒子 alpha 渐入，柔化与光标的衔接
-    TAIL_FADE_START: 0.55,             // 沿轨迹比例：超过该位置开始 alpha 衰减
-    TAIL_FADE_POWER: 2.5,              // alpha = 1 - tailT^p；p>1 → body 长时间饱满，只在末端急降
-    TAIL_FADE_END_ALPHA: 0.0,          // 末端目标 alpha：0 = 完全消散（让平直收口在 alpha=0 处不可见）
-    IDLE_FADE_FRAMES: 90,              // 静止超过 N 帧后整条光带（含 bloom）淡出（~1.5s @ 60fps）
-    // Bloom（'lighter' 加法叠加；alpha 调低避免多层 + 邻近粒子 blur 在亮色区饱和到白）
-    BLOOM_INNER_BLUR_PX: 6,
-    BLOOM_OUTER_BLUR_PX: 18,
-    BLOOM_INNER_ALPHA: 0.28,
-    BLOOM_OUTER_ALPHA: 0.18,
-    CORE_ALPHA: 1.0,                   // 主光带（渐变 fill）的不透明度；逐光标 idle alpha 在 ctx.globalAlpha 中应用
-    BLOOM_DOWNSCALE: 0.5,              // 离屏 canvas 用 0.5× 分辨率，bloom 不损失观感
-    // 物理（保留原拖尾跟随手感）
+    CURSOR_POLLING_MS: 150,            // 轮询 .cursor 节点出现/消失
+
+    // 帧率解耦（固定步长：物理恒以 PHYSICS_FPS 步进，渲染跟显示器 → 任意刷新率手感一致）
+    PHYSICS_FPS: 60,                   // 链松弛步进频率。60 = 还原 trail-effect2 在 60fps 下的手感
+    MAX_PHYSICS_STEPS: 6,              // 单帧最多补几步（防长卡顿后"追帧"暴走 / spiral of death）
+    MAX_FPS: 0,                        // 渲染封顶；0 = 跟随显示器 rAF。>0（如 60）可在高刷屏限帧省电
+    COLOR_REFRESH_HZ: 30,              // 色串刷新频率（与渲染帧率解耦）
+
+    // 颜色（HSL，避免 per-frame RGB↔HSL）；与 div.cursor 渐变同源
+    START_COLOR_HSL: { h: 177, s: 93, l: 69 },   // ≈ rgb(103,250,243)
+    END_COLOR_HSL:   { h: 266, s: 100, l: 72 },  // ≈ rgb(182,110,255)
+    HUE_SPEED_DEG_PER_SEC: 30,
+
+    // 几何（宽度沿运动法线展开；含 ::after scale 放大以对齐发光块）
+    CURSOR_VISUAL_X_SCALE: 1.4,
+    CURSOR_VISUAL_Y_SCALE: 1.2,
+    BAND_WIDTH_RATIO: 1.0,
+    HEAD_FADE_PARTICLES: 3,            // 前 N 粒子 alpha 渐入 + 几何收口，柔化与光标衔接
+    TAIL_FADE_START: 0.55,             // 轨迹比例，超过此处尾部 alpha 渐隐（长条"溶解"收口）
+    TAIL_FADE_POWER: 2.5,
+    TAIL_FADE_END_ALPHA: 0.0,
+    IDLE_FADE_SECONDS: 1.5,            // 静止超过该秒数后整条光带（含泛光）淡出
+
+    // 泛光（trail-effect2 风格：canvas shadowBlur 贴边发光）
+    // source-over 单次填充：shadow 画在形状下方，本体不被叠加 → 不会过曝发白
+    GLOW_BLUR_PX: 20,                  // 发光扩散半径
+    GLOW_PASSES: 2,                    // 发光遍数（越多光晕越浓；本体颜色不变）
+    CORE_ALPHA: 1.0,                   // 主光带不透明度；逐光标 idle 淡出另在 globalAlpha 叠加
+
+    // 物理（弹簧链跟随手感；固定步长 → 与刷新率无关）
     LERP_X: 0.42,
     LERP_Y: 0.35,
-    // 烟雾粒子尾（默认开；可关闭以省性能）
-    // 设计：双路 spawn 调度，按 cursor 实际帧间位移区分模式：
-    //   - 打字（位移 < MOTION_THRESHOLD）：仅以 SPAWN_RATE_HZ 的低恒定背景率从 chain 拖尾
-    //     的 alpha 渐隐区（idx ≥ N*TAIL_FADE_START）生成，给柔和的小 cloud。
-    //   - 跳跃（位移 ≥ MOTION_THRESHOLD）：按 moveDist / SMOKE_PIXELS_PER_SPAWN 沿
-    //     (prevCursor → cursor) 的几何路径均匀插值生成（不依赖 chain 物理），
-    //     避免 chain 粒子帧 1 全部聚集在旧光标处导致"烟雾固定在出发点"的问题。
-    //     跳跃越长 → 越多粒子，且沿路径分布。
+
+    // 烟雾（只从链尾尖喷发）
     SMOKE_ENABLED: true,
-    SMOKE_SPAWN_RATE_HZ: 4,            // 打字/低位移背景率，活跃数 ≈ rate × LIFETIME（淡）
-    SMOKE_PIXELS_PER_SPAWN: 22,        // 跳跃模式：每移动 N px 增发 1 个粒子（小 → 浓）
-    SMOKE_MOTION_THRESHOLD_PX: 30,     // 帧间位移 ≥ 此值切到跳跃模式（沿移动路径插值）
-    SMOKE_LIFETIME_S: 0.55,            // 单粒子寿命（秒）
-    SMOKE_BASE_RADIUS_PX: 5,           // 初始半径
-    SMOKE_GROWTH: 2.2,                 // 寿命终点半径 = base * (1 + growth)
-    SMOKE_DRIFT_SPEED: 28,             // 随机方向漂移速度 px/s
-    SMOKE_BACKWARD_BIAS: 18,           // 沿 +tangent 方向的偏移 px/s（让烟雾继续向 trail 老方向漂）
-    SMOKE_SPAWN_MIN_DIST: 8,           // tail 与 cursor 距离 < 此值（且非跳跃帧）时不生成
-    SMOKE_MAX_PARTICLES: 240,          // 单光标粒子数硬上限（跳跃可一次性大量生成，需放宽）
-    // 两层渲染：bloom 提供光晕，main 提供可见的"核"
-    SMOKE_BLOOM_PEAK_ALPHA: 1.0,       // 画到 bloom 画布的中心 alpha（被 bloom 合成衰减后约 0.2）
-    SMOKE_MAIN_PEAK_ALPHA: 0.55,       // 画到主画布的中心 alpha（lighter 直接叠加，看得见的"核"）
+    SMOKE_SPAWN_RATE_HZ: 2,           // 打字/低位移时尾尖的背景喷发率
+    SMOKE_PIXELS_PER_SPAWN: 8,       // 尾尖每移动 N px 增发 1 颗（慢速时的间隔）
+    SMOKE_PIXELS_PER_SPAWN_MIN: 1,    // 满速时的最小间隔（越小越密；随速度从上值收缩到此值，最小 1）
+    SMOKE_SPAWN_MIN_DIST: 8,          // 链尾离光标 < 此值时不喷（尾巴太短）
+    SMOKE_MAX_PARTICLES: 1000,
+    SMOKE_LIFETIME_S: 0.2,
+    SMOKE_BASE_RADIUS_PX: 5,
+    SMOKE_GROWTH: 2.2,                 // 终点半径 = base × (1 + growth)
+    SMOKE_DRIFT_SPEED: 38,            // 随机漂移 px/s
+    SMOKE_BACKWARD_BIAS: 28,          // 沿尾部切线继续外漂 px/s
+    SMOKE_DRAG_PER_SEC: 0.08,         // 速度每秒衰减到原来的此比例（按 dt 归一）
+    SMOKE_PEAK_ALPHA: 0.5,            // 烟雾中心不透明度（'lighter' 叠加的可见"核"）
+    SMOKE_ALONG_SPREAD: 1.0,         // 沿运动方向的随机散布（×法向宽度）：打散高速时的"烟雾柱"，0=只横向
+    // 浓度随光标速度（越快越浓：喷发率 + 不透明度同时提升）
+    SMOKE_SPEED_FULL_PXS: 1000,      // 光标速度达此值(px/s)时浓度倍率到最大
+    SMOKE_SPEED_RATE_MULT: 6,        // 满速时喷发率倍率上限
+    SMOKE_SPEED_ALPHA_MULT: 1.1,     // 满速时不透明度倍率上限
   };
 
   const N = CONFIG.TRAIL_LENGTH;
+  const SMOKE = CONFIG.SMOKE_ENABLED;
 
   /* --------------------------- utils --------------------------- */
 
@@ -80,53 +81,43 @@
   /** HSL 插值（角度走最短路径） */
   function lerpHsl(c1, c2, t) {
     const dh = ((c2.h - c1.h + 540) % 360) - 180;
-    return {
-      h: (c1.h + dh * t + 360) % 360,
-      s: lerp(c1.s, c2.s, t),
-      l: lerp(c1.l, c2.l, t),
-    };
+    return { h: (c1.h + dh * t + 360) % 360, s: lerp(c1.s, c2.s, t), l: lerp(c1.l, c2.l, t) };
   }
-
   const hsla = (h, s, l, a) =>
     `hsla(${h.toFixed(1)},${s.toFixed(1)}%,${l.toFixed(1)}%,${a.toFixed(3)})`;
 
-  /* --------------------------- 共享：色相与几何缓存 ---------------------------
-   * 这些数组的内容只取决于粒子在轨迹中的相对位置 i/N，与具体光标无关，
-   * 因此在所有 TrailModel 之间共享，避免重复计算。
-   */
+  /* ---- 共享：色相 / alpha 缓存（只取决于 i/N，与具体光标无关） ---- */
 
-  // 每个粒子的基础 HSL 锚点（沿轨迹的颜色渐变）
   const baseHsl = new Array(N);
-  for (let i = 0; i < N; i++) {
-    baseHsl[i] = lerpHsl(CONFIG.START_COLOR_HSL, CONFIG.END_COLOR_HSL, i / (N - 1));
-  }
+  for (let i = 0; i < N; i++) baseHsl[i] = lerpHsl(CONFIG.START_COLOR_HSL, CONFIG.END_COLOR_HSL, i / (N - 1));
 
-  // 共享色串缓存：仅含头部 alpha 渐入 + 尾部 alpha 渐隐 + 当前 hueOffset；
-  // 每光标的 idle 淡出在渲染时通过 ctx.globalAlpha 单独叠加。
   const colorStrCache = new Array(N).fill('hsla(0,0%,100%,1)');
   let hueOffset = 0;
   let lastTimeMs = 0;
-  let frameCounter = 0;
+  let colorAccum = 0;                 // 色串刷新时间累计
 
+  /** 尾部 alpha 渐隐 + 当前 hueOffset；头部保持实心（与光标 startColor 无缝衔接，不渐入）。
+   *  逐光标 idle 淡出在渲染时叠加。 */
   function refreshSharedColors() {
-    const fadeN = CONFIG.HEAD_FADE_PARTICLES;
-    const tailFadeStartIdx = CONFIG.TAIL_FADE_START * (N - 1);
+    const tailStart = CONFIG.TAIL_FADE_START * (N - 1);
     const tailEnd = CONFIG.TAIL_FADE_END_ALPHA;
     for (let i = 0; i < N; i++) {
       const c = baseHsl[i];
       const h = (c.h + hueOffset) % 360;
       let a = 1;
-      if (i < fadeN) a *= (i + 1) / (fadeN + 1);
-      // 尾部 alpha 从 1 渐降到 TAIL_FADE_END_ALPHA（不归零，保留圆弧封口的半透可见度）
-      if (i > tailFadeStartIdx) {
-        const tailT = (i - tailFadeStartIdx) / (N - 1 - tailFadeStartIdx);
+      if (i > tailStart) {
+        const tailT = (i - tailStart) / (N - 1 - tailStart);
         a *= 1 - (1 - tailEnd) * Math.pow(tailT, CONFIG.TAIL_FADE_POWER);
       }
       colorStrCache[i] = hsla(h, c.s, c.l, a);
     }
   }
 
-  /* --------------------------- TrailModel（per-cursor 状态） --------------------------- */
+  /* --------------------------- TrailModel（per-cursor 状态） ---------------------------
+   * 弹簧链：每个粒子向"后一个粒子" lerp 靠拢，形成头贴光标、尾随其后的长条。
+   * 固定步长（fixed timestep）：链松弛恒以 PHYSICS_FPS 步进，与渲染刷新率解耦 →
+   * 60/144/240Hz 下传播速度、拖尾长度、收尾时间完全一致（还原 trail-effect2 在 60fps 的手感）。
+   */
 
   function createTrailModel() {
     const particles = new Array(N);
@@ -136,405 +127,275 @@
 
     const cursor = { x: 0, y: 0 };
     const lastCursor = { x: 0, y: 0 };
-    let sizeX = 7;
-    let sizeY = 16;
+    let sizeX = 7, sizeY = 16;
     let initted = false;
-    let idleFrames = 0;
+    let idleSeconds = 0;
     let globalAlpha = 0;
+    let physicsAccum = 0;              // 固定步长累计器（秒）
+    let cursorSpeed = 0;               // 光标瞬时速度 px/s（平滑后），驱动烟雾浓度
 
-    /** 烟雾粒子池：{ x, y, vx, vy, age, life, baseR } */
-    const smokes = [];
-    let smokeAccum = 0; // 累计帧时间，按 SMOKE_SPAWN_RATE_HZ 生成新粒子
-    // 用于跳跃模式 smoke 沿 (prevCursor → cursor) 路径插值；NaN 表示没有上一帧光标可用。
-    let prevCursorX = NaN;
-    let prevCursorY = NaN;
+    const smokes = SMOKE ? [] : null;
+    let smokeAccum = 0;
+    let lastTailX = NaN, lastTailY = NaN;
 
-    function updateCursorSize(w, h) {
-      sizeX = w;
-      if (h) sizeY = h;
-    }
+    function updateCursorSize(w, h) { sizeX = w; if (h) sizeY = h; }
 
-    /** 把全部粒子吸附到 (x, y) 并重置 idle —— move() 与 setImmediate() 共用的种子操作。 */
+    /** 全部粒子吸附到 (x,y) 并重置 idle —— move()/setImmediate() 共用 */
     function seedAt(x, y) {
       initted = true;
-      for (let i = 0; i < N; i++) {
-        particles[i].x = x;
-        particles[i].y = y;
-      }
-      lastCursor.x = x;
-      lastCursor.y = y;
-      idleFrames = 0;
-      // 重置 prevCursor → 下一帧若 cursor 跳到远处，不会被当成"跳跃路径"刷出一长串 smoke
-      prevCursorX = x;
-      prevCursorY = y;
+      for (let i = 0; i < N; i++) { particles[i].x = x; particles[i].y = y; }
+      lastCursor.x = x; lastCursor.y = y;
+      idleSeconds = 0;
+      physicsAccum = 0;
+      lastTailX = x; lastTailY = y;       // 尾尖归位，避免重种子被当成位移喷烟
     }
 
     function move(rawX, rawY) {
-      // 粒子位置以光标"几何中心"为参考点（CSS ::after scale 默认从中心展开）
+      // 以光标几何中心为参考（::after scale 从中心展开）
       const x = rawX + sizeX / 2;
       const y = rawY + sizeY / 2;
-      // 仅在"几乎不可见"时重新种子（首次 or 已淡出）—— 此时 reset 无视觉断裂。
-      // 不做距离阈值检测：让物理链自然把粒子从旧位置拖到新位置，
-      // Home/End / Ctrl+Home / 远点击都形成一条"扫过去"的拖尾。
-      const reseed = !initted || globalAlpha < 0.05;
-      cursor.x = x;
-      cursor.y = y;
-      if (reseed) seedAt(x, y);
+      cursor.x = x; cursor.y = y;
+      // 仅在几乎不可见时重种子（首次 / 已淡出），此时 reset 无视觉断裂；
+      // 不做距离阈值：让链自然把粒子从旧位置拖到新位置 → Home/End/远点击都"扫过去"
+      if (!initted || globalAlpha < 0.05) seedAt(x, y);
     }
 
-    /** 强制吸附到当前位置（无视任何阈值/动画状态）。
-     *  用于：滚动时让光带不去"追赶"被滚动条带走的虚假位移。 */
+    /** 强制吸附（无视阈值）：滚动时不让光带追赶被滚动条带走的假位移。 */
     function setImmediate(rawX, rawY) {
-      const x = rawX + sizeX / 2;
-      const y = rawY + sizeY / 2;
-      cursor.x = x;
-      cursor.y = y;
-      seedAt(x, y);
+      cursor.x = rawX + sizeX / 2;
+      cursor.y = rawY + sizeY / 2;
+      seedAt(cursor.x, cursor.y);
     }
 
-    /** 推进物理 + 切线 + idle alpha + 烟雾粒子；不做任何绘制。 */
-    function tickPhysics(dt) {
-      if (!initted) {
-        globalAlpha = 0;
-        return;
-      }
-      // 链式 lerp：每个粒子向"后一个粒子"靠拢，形成跟随感
-      let x = cursor.x;
-      let y = cursor.y;
+    /** 一步固定步长的链松弛（与 trail-effect2 逐帧等价：x += (next-cur)*LERP）。 */
+    function stepChain() {
+      let x = cursor.x, y = cursor.y;
       for (let i = 0; i < N; i++) {
         const next = particles[(i + 1) % N];
         const cur = particles[i];
-        cur.x = x;
-        cur.y = y;
-        const dx = (next.x - cur.x) * CONFIG.LERP_X;
-        const dy = (next.y - cur.y) * CONFIG.LERP_Y;
-        x += dx;
-        y += dy;
+        cur.x = x; cur.y = y;
+        x += (next.x - cur.x) * CONFIG.LERP_X;
+        y += (next.y - cur.y) * CONFIG.LERP_Y;
       }
-      // 中心差分切线：(t.x, t.y) 用于 (a) 法线方向展开光带宽度  (b) 头部偏移到光标尾随边
+    }
+
+    /** 推进链物理 + 切线 + idle alpha（+ 烟雾）；不绘制。
+     *  固定步长累计器：物理恒以 PHYSICS_FPS 步进，渲染帧率多高/多低都跑相同步数 → 与刷新率无关。 */
+    function tickPhysics(dt) {
+      if (!initted) { globalAlpha = 0; return; }
+
+      // 链松弛：把真实 dt 攒进累计器，按 1/PHYSICS_FPS 的固定步长消费整步
+      const stepDt = 1 / CONFIG.PHYSICS_FPS;
+      physicsAccum += clamp(dt, 0, 0.25);
+      let steps = Math.floor(physicsAccum / stepDt);
+      physicsAccum -= steps * stepDt;
+      if (steps > CONFIG.MAX_PHYSICS_STEPS) steps = CONFIG.MAX_PHYSICS_STEPS;  // 卡顿后不追帧暴走
+      for (let s = 0; s < steps; s++) stepChain();
+
+      // 中心差分切线：法线展宽 + 头部偏移
       for (let i = 0; i < N; i++) {
         const a = particles[i === 0 ? 0 : i - 1];
         const b = particles[i === N - 1 ? N - 1 : i + 1];
-        const tx = b.x - a.x;
-        const ty = b.y - a.y;
+        const tx = b.x - a.x, ty = b.y - a.y;
         const len = Math.hypot(tx, ty);
-        if (len > 0.01) {
-          tangents[i].x = tx / len;
-          tangents[i].y = ty / len;
-        }
+        if (len > 0.01) { tangents[i].x = tx / len; tangents[i].y = ty / len; }
       }
-      // 静止检测 → idle 淡出
-      const moved = cursor.x !== lastCursor.x || cursor.y !== lastCursor.y;
-      if (moved) {
-        idleFrames = 0;
-        lastCursor.x = cursor.x;
-        lastCursor.y = cursor.y;
+      // 静止检测 → idle 淡出 + 光标速度（驱动烟雾浓度）；均按秒，与帧率无关
+      const moveX = cursor.x - lastCursor.x;
+      const moveY = cursor.y - lastCursor.y;
+      if (moveX !== 0 || moveY !== 0) {
+        idleSeconds = 0; lastCursor.x = cursor.x; lastCursor.y = cursor.y;
       } else {
-        idleFrames++;
+        idleSeconds += dt;
       }
-      globalAlpha = clamp(1 - idleFrames / CONFIG.IDLE_FADE_FRAMES, 0, 1);
+      // 指数平滑速度，避免逐帧抖动；dt→0 时不更新
+      if (dt > 1e-4) {
+        const inst = Math.hypot(moveX, moveY) / dt;
+        cursorSpeed += (inst - cursorSpeed) * clamp(dt * 12, 0, 1);
+      }
+      globalAlpha = clamp(1 - idleSeconds / CONFIG.IDLE_FADE_SECONDS, 0, 1);
 
-      // 烟雾粒子推进
-      if (CONFIG.SMOKE_ENABLED) updateSmoke(dt);
+      if (SMOKE) updateSmoke(dt);
     }
 
+    /** 烟雾只从链尾尖喷发：背景时间率 + 尾尖位移率（跳跃时尾尖回缩划过 → 沿尾巴补喷）。
+     *  浓度随光标速度提升：speedT∈[0,1] 同时放大喷发率与单颗不透明度。 */
     function updateSmoke(dt) {
-      // 当前帧 cursor 相对上一帧的位移（用于决定 spawn 模式）
-      let moveDist = 0;
-      let mx = 0, my = 0;
-      if (!Number.isNaN(prevCursorX)) {
-        mx = cursor.x - prevCursorX;
-        my = cursor.y - prevCursorY;
-        moveDist = Math.hypot(mx, my);
-      }
-
+      const tail = particles[N - 1];
+      const distToCursor = Math.hypot(tail.x - cursor.x, tail.y - cursor.y);
       const cap = CONFIG.SMOKE_MAX_PARTICLES;
 
-      if (moveDist >= CONFIG.SMOKE_MOTION_THRESHOLD_PX && smokes.length < cap) {
-        // 跳跃模式：按位移密度沿 (prev → cur) 路径直接插值生成；
-        // 不走 smokeAccum，避免和打字模式抢预算。
-        const want = Math.floor(
-          (moveDist - CONFIG.SMOKE_MOTION_THRESHOLD_PX) / CONFIG.SMOKE_PIXELS_PER_SPAWN,
-        ) + 1; // +1 让阈值刚过的轻跳跃也至少生成 1 颗
-        const count = Math.min(want, cap - smokes.length);
-        // 切线 = -motion 方向（让 backward bias 继续向旧光标方向漂，与拖尾感觉一致）
-        const ml = moveDist || 1;
-        const tx = -mx / ml;
-        const ty = -my / ml;
-        // 路径宽度：用当前光标尺寸沿垂直 motion 方向展开
-        const visX = sizeX * CONFIG.CURSOR_VISUAL_X_SCALE;
-        const visY = sizeY * CONFIG.CURSOR_VISUAL_Y_SCALE;
-        const halfW = (visX * Math.abs(ty) + visY * Math.abs(tx)) * CONFIG.BAND_WIDTH_RATIO * 0.5;
-        // 仅在"拖尾尾部 alpha 渐隐区"对应的几何段内 spawn：
-        // (prev → cur) 路径中 u=1 是 cursor 头（实体段），u=0 是 prev（尾尖）；
-        // 拖尾 chain 在 idx ≥ N*TAIL_FADE_START 才进入渐隐区，对应 u ≤ (1 - TAIL_FADE_START)。
-        // 让 u 从 0 (prev) 到 uMax (尾段与实体段交界)，烟雾正好出现在拖尾"半透→消散"的尾段。
-        const uMax = 1 - CONFIG.TAIL_FADE_START;
-        for (let k = 0; k < count; k++) {
-          // 在尾段内偏向接近 prev（更"远端"）少一点、接近交界处多一点 —— 用 1-(1-r)^2 把分布往 uMax 推
-          const r = Math.random();
-          const u = uMax * (1 - (1 - r) * (1 - r));
-          const px = lerp(prevCursorX, cursor.x, u);
-          const py = lerp(prevCursorY, cursor.y, u);
-          spawnSmokeAt(px, py, tx, ty, halfW);
-        }
+      // 速度归一化 → 浓度倍率
+      const speedT = clamp(cursorSpeed / CONFIG.SMOKE_SPEED_FULL_PXS, 0, 1);
+      const rateMult = 1 + (CONFIG.SMOKE_SPEED_RATE_MULT - 1) * speedT;
+      const alphaMult = 1 + (CONFIG.SMOKE_SPEED_ALPHA_MULT - 1) * speedT;
+      // 位移间隔随速度收缩：慢速 SMOKE_PIXELS_PER_SPAWN → 满速 SMOKE_PIXELS_PER_SPAWN_MIN（越快越密）
+      const pxPerSpawn = Math.max(1, lerp(CONFIG.SMOKE_PIXELS_PER_SPAWN, CONFIG.SMOKE_PIXELS_PER_SPAWN_MIN, speedT));
+
+      if (distToCursor < CONFIG.SMOKE_SPAWN_MIN_DIST || smokes.length >= cap) {
         smokeAccum = 0;
       } else {
-        // 打字 / 低位移：从 chain 拖尾的 alpha 渐隐区低速恒定生成（淡）
-        const tail = particles[N - 1];
-        const dxc = tail.x - cursor.x;
-        const dyc = tail.y - cursor.y;
-        const trailLen = Math.hypot(dxc, dyc);
-        if (trailLen < CONFIG.SMOKE_SPAWN_MIN_DIST) {
-          smokeAccum = 0;
-        } else if (smokes.length < cap) {
-          smokeAccum += CONFIG.SMOKE_SPAWN_RATE_HZ * dt;
-          while (smokeAccum >= 1 && smokes.length < cap) {
-            smokeAccum -= 1;
-            spawnAtTrailTail();
-          }
-        } else {
-          smokeAccum = 0;
+        smokeAccum += CONFIG.SMOKE_SPAWN_RATE_HZ * rateMult * dt;
+        if (!Number.isNaN(lastTailX)) {
+          smokeAccum += Math.hypot(tail.x - lastTailX, tail.y - lastTailY) / pxPerSpawn;
         }
+        while (smokeAccum >= 1 && smokes.length < cap) { smokeAccum -= 1; spawnAtTail(alphaMult); }
       }
+      lastTailX = tail.x; lastTailY = tail.y;
 
-      prevCursorX = cursor.x;
-      prevCursorY = cursor.y;
-
-      // 更新已有粒子；倒序删除便于原地 splice
+      const drag = Math.pow(CONFIG.SMOKE_DRAG_PER_SEC, dt);   // 每秒衰减到此比例
       for (let i = smokes.length - 1; i >= 0; i--) {
         const s = smokes[i];
         s.age += dt;
         if (s.age >= s.life) { smokes.splice(i, 1); continue; }
-        s.x += s.vx * dt;
-        s.y += s.vy * dt;
-        s.vx *= 0.92; // 衰减速度，让粒子像被空气阻力减速
-        s.vy *= 0.92;
+        s.x += s.vx * dt; s.y += s.vy * dt;
+        s.vx *= drag; s.vy *= drag;
       }
     }
 
-    /**
-     * 打字模式 spawn：在拖尾的 alpha 渐隐区（idx ≥ N×TAIL_FADE_START）均匀采样一个粒子位置：
-     *   - 此区域是拖尾视觉上"半透→消散"的尾段，烟雾像是"散出来"的
-     *   - 法线方向再做横向散射，让烟雾铺满光带宽度而不是中线一条
-     */
-    function spawnAtTrailTail() {
-      const minIdxF = (N - 1) * CONFIG.TAIL_FADE_START;
-      const maxIdxF = N - 1;
-      const idxF = minIdxF + Math.random() * (maxIdxF - minIdxF);
-      const i0 = Math.floor(idxF);
-      const i1 = Math.min(i0 + 1, N - 1);
-      const f = idxF - i0;
-      const px = lerp(particles[i0].x, particles[i1].x, f);
-      const py = lerp(particles[i0].y, particles[i1].y, f);
-      let tx = lerp(tangents[i0].x, tangents[i1].x, f);
-      let ty = lerp(tangents[i0].y, tangents[i1].y, f);
-      const tl = Math.hypot(tx, ty);
-      if (tl > 0.01) { tx /= tl; ty /= tl; }
+    /** 在链尾尖附近喷一颗：沿法线横向 + 沿切线纵向都随机散开（避免某方向高速时挤成柱）。
+     *  速度 = 随机方向 + 尾部切线 backward bias。peakMult 为速度浓度倍率，烘进该颗 peak。 */
+    function spawnAtTail(peakMult) {
+      const i = N - 1;
+      const t = tangents[i];
       const visX = sizeX * CONFIG.CURSOR_VISUAL_X_SCALE;
       const visY = sizeY * CONFIG.CURSOR_VISUAL_Y_SCALE;
-      const halfW = (visX * Math.abs(ty) + visY * Math.abs(tx)) * CONFIG.BAND_WIDTH_RATIO * 0.5;
-      spawnSmokeAt(px, py, tx, ty, halfW);
-    }
-
-    /** 统一的 spawn helper：在 (px, py) 周围沿法线方向散射，速度 = 随机 + tangent 方向 backward bias。 */
-    function spawnSmokeAt(px, py, tx, ty, halfW) {
-      const lateral = (Math.random() * 2 - 1) * halfW;
-      const sx = px - ty * lateral;
-      const sy = py + tx * lateral;
+      const halfW = (visX * Math.abs(t.y) + visY * Math.abs(t.x)) * CONFIG.BAND_WIDTH_RATIO * 0.5;
+      const lateral = (Math.random() * 2 - 1) * halfW;                       // 垂直运动方向
+      const along = (Math.random() * 2 - 1) * halfW * CONFIG.SMOKE_ALONG_SPREAD; // 沿运动方向
       const ang = Math.random() * Math.PI * 2;
       const sp = CONFIG.SMOKE_DRIFT_SPEED * (0.6 + Math.random() * 0.8);
       const bias = CONFIG.SMOKE_BACKWARD_BIAS;
       smokes.push({
-        x: sx,
-        y: sy,
-        vx: Math.cos(ang) * sp + tx * bias,
-        vy: Math.sin(ang) * sp + ty * bias,
+        x: particles[i].x - t.y * lateral + t.x * along,
+        y: particles[i].y + t.x * lateral + t.y * along,
+        vx: Math.cos(ang) * sp + t.x * bias,
+        vy: Math.sin(ang) * sp + t.y * bias,
         age: 0,
         life: CONFIG.SMOKE_LIFETIME_S,
         baseR: CONFIG.SMOKE_BASE_RADIUS_PX * (0.7 + Math.random() * 0.6),
+        peak: clamp(CONFIG.SMOKE_PEAK_ALPHA * peakMult, 0, 1),
       });
     }
 
     return {
-      move,
-      setImmediate,
-      updateCursorSize,
-      tickPhysics,
+      move, setImmediate, updateCursorSize, tickPhysics,
       get particles() { return particles; },
       get tangents() { return tangents; },
       get smokes() { return smokes; },
       get sizeX() { return sizeX; },
       get sizeY() { return sizeY; },
       get globalAlpha() { return globalAlpha; },
-      // 烟雾粒子可能在 trail 已 idle 淡出后还存活，需要把它们也算进 visible 判断
-      get visible() {
-        return initted && (globalAlpha > 0.001 || (CONFIG.SMOKE_ENABLED && smokes.length > 0));
-      },
+      // 烟雾可能在 trail idle 淡出后仍存活，需一并计入 visible
+      get visible() { return initted && (globalAlpha > 0.001 || (SMOKE && smokes.length > 0)); },
     };
   }
 
-  /* --------------------------- TrailScene（共享 canvas + bloom 合成） --------------------------- */
+  /* --------------------------- TrailScene（共享 canvas；shadowBlur 贴边泛光） --------------------------- */
 
   function createTrailScene(canvas) {
     const ctx = canvas.getContext('2d');
-    const bloomCanvas = document.createElement('canvas');
-    const bctx = bloomCanvas.getContext('2d');
-    let width = 0;
-    let height = 0;
+    let width = 0, height = 0;
 
     function updateSize(w, h) {
-      width = w;
-      height = h;
-      canvas.width = w;
-      canvas.height = h;
-      bloomCanvas.width = Math.max(1, Math.floor(w * CONFIG.BLOOM_DOWNSCALE));
-      bloomCanvas.height = Math.max(1, Math.floor(h * CONFIG.BLOOM_DOWNSCALE));
+      width = w; height = h;
+      canvas.width = w; canvas.height = h;
     }
-
     function clear() {
       ctx.clearRect(0, 0, width, height);
-      bctx.clearRect(0, 0, bloomCanvas.width, bloomCanvas.height);
     }
 
-    /* ---- per-model 路径 / 几何 ----
-     * 这些函数都从 model 中取 particles/tangents/sizeX/sizeY。所有"形状"逻辑共享，
-     * 只是输入不同。
-     */
+    /* ---- 路径 / 几何（中心线 Catmull-Rom→Bezier；y 方向按 yScale 压缩以配合各向异性笔刷） ----
+     * 头部向运动前方延长 headExt（圆头帽落在这段上），该段 alpha 渐变到 0：
+     * 圆头几何仍在 → 衔接平滑无棱角，但视觉上不可见 → 可见实色从光标中心起步，融入光标。 */
 
-    function tracePath(targetCtx, model, offsetFn, reverse, withMoveTo = true) {
-      const particles = model.particles;
-      const idx = (k) => (reverse ? N - 1 - k : k);
-      const p0 = particles[idx(0)];
-      const off = offsetFn(idx(0));
-      if (withMoveTo) targetCtx.moveTo(p0.x + off.dx, p0.y + off.dy);
-      else targetCtx.lineTo(p0.x + off.dx, p0.y + off.dy);
+    /** 头部延长信息（scaled 空间）：tip 尖点 + f0（tip→tail 上 p0 所处比例）。 */
+    function headExtent(model, yScale, lineWidth) {
+      const p = model.particles;
+      const sx0 = p[0].x, sy0 = p[0].y / yScale;
+      const sx1 = p[1].x, sy1 = p[1].y / yScale;
+      let dx = sx0 - sx1, dy = sy0 - sy1;
+      const len = Math.hypot(dx, dy) || 1;
+      dx /= len; dy /= len;
+      const ext = lineWidth * 0.5 + 1;                     // 覆盖圆头帽（半径 lineWidth/2）
+      const tipX = sx0 + dx * ext, tipY = sy0 + dy * ext;
+      const sxT = p[N - 1].x, syT = p[N - 1].y / yScale;
+      const headToTail = Math.hypot(sxT - sx0, syT - sy0) || 1;
+      // f0：tip→tail 上 p0 所处比例。拖尾越短 headToTail 越小 → f0→1 → 实色段→0：
+      // 占位圆头与拖尾同步收缩消失，不会在拖尾没了之后还留一个半圆。
+      const f0 = clamp(ext / (ext + headToTail), 0, 1);
+      return { tipX, tipY, f0 };
+    }
+
+    function traceCenterline(targetCtx, model, yScale, head) {
+      const p = model.particles;
+      const sy = yScale;
+      targetCtx.moveTo(head.tipX, head.tipY);              // 从透明延长尖点起笔
+      targetCtx.lineTo(p[0].x, p[0].y / sy);               // 直连到 p0（与 p0→p1 共线，平滑）
       for (let i = 0; i < N - 1; i++) {
-        const p_1 = particles[idx(Math.max(0, i - 1))];
-        const p1 = particles[idx(i)];
-        const p2 = particles[idx(i + 1)];
-        const p3 = particles[idx(Math.min(N - 1, i + 2))];
-        const o1 = offsetFn(idx(i));
-        const o2 = offsetFn(idx(i + 1));
-        const o0 = offsetFn(idx(Math.max(0, i - 1)));
-        const o3 = offsetFn(idx(Math.min(N - 1, i + 2)));
-        const c1x = p1.x + o1.dx + ((p2.x + o2.dx) - (p_1.x + o0.dx)) / 6;
-        const c1y = p1.y + o1.dy + ((p2.y + o2.dy) - (p_1.y + o0.dy)) / 6;
-        const c2x = p2.x + o2.dx - ((p3.x + o3.dx) - (p1.x + o1.dx)) / 6;
-        const c2y = p2.y + o2.dy - ((p3.y + o3.dy) - (p1.y + o1.dy)) / 6;
-        targetCtx.bezierCurveTo(c1x, c1y, c2x, c2y, p2.x + o2.dx, p2.y + o2.dy);
+        const p_1 = p[Math.max(0, i - 1)];
+        const p1 = p[i];
+        const p2 = p[i + 1];
+        const p3 = p[Math.min(N - 1, i + 2)];
+        const c1x = p1.x + (p2.x - p_1.x) / 6;
+        const c1y = (p1.y + (p2.y - p_1.y) / 6) / sy;
+        const c2x = p2.x - (p3.x - p1.x) / 6;
+        const c2y = (p2.y - (p3.y - p1.y) / 6) / sy;
+        targetCtx.bezierCurveTo(c1x, c1y, c2x, c2y, p2.x, p2.y / sy);
       }
     }
 
-    function headBlend(i) {
-      // i=0 → 1.0：头边正好抵到光标的尾随边缘，消除斜向移动时的肉眼可见缺口；
-      // i=fadeN-1 → ~1/fadeN：让前几个粒子的偏移平滑过渡到 0。
-      // 注：alpha 渐入由 refreshSharedColors 单独处理，不复用此函数。
-      return i < CONFIG.HEAD_FADE_PARTICLES
-        ? 1 - i / CONFIG.HEAD_FADE_PARTICLES
-        : 0;
-    }
-
-    /**
-     * 沿粒子方向画一条均匀宽度的长条光带。尾端不做几何封口，靠 alpha 渐隐让末端"溶解"消失：
-     *   bandThickness = visX*|ty| + visY*|tx|              // 与运动方向垂直的"光标轮廓宽度"
-     *   halfW         = bandThickness * BAND_WIDTH_RATIO * 0.5
-     *   path          = upper(head→tail) + lineTo(lower-tail) + lower(tail→head) + closePath(回 head)
-     */
-    function drawTaperedBand(targetCtx, model) {
-      const particles = model.particles;
-      const tangents = model.tangents;
-      const visX = model.sizeX * CONFIG.CURSOR_VISUAL_X_SCALE;
-      const visY = model.sizeY * CONFIG.CURSOR_VISUAL_Y_SCALE;
-      const widthFactor = CONFIG.BAND_WIDTH_RATIO * 0.5;
-
-      const headOffsetMag = (i) => {
-        const blend = headBlend(i);
-        if (blend === 0) return 0;
-        const t = tangents[i];
-        const depth = visX * Math.abs(t.x) + visY * Math.abs(t.y);
-        return depth * 0.5 * blend;
-      };
-
-      const sideOffset = (i, sign) => {
-        const t = tangents[i];
-        // n = (-ty, tx) 是与切线垂直的单位法线；sign 决定上沿/下沿
-        const baseThickness = visX * Math.abs(t.y) + visY * Math.abs(t.x);
-        const halfW = baseThickness * widthFactor * sign;
-        const ho = headOffsetMag(i);
-        return {
-          dx: -t.y * halfW + t.x * ho,
-          dy:  t.x * halfW + t.y * ho,
-        };
-      };
-      const upperOffset = (i) => sideOffset(i, +1);
-      const lowerOffset = (i) => sideOffset(i, -1);
-
-      targetCtx.beginPath();
-      // 上沿：head → tail（首笔 moveTo）
-      tracePath(targetCtx, model, upperOffset, false);
-      // 平直收口到下沿尾点；这条短边在 alpha→0 的位置画出来，视觉上不可见 → 长条"溶解"消失
-      const tail = particles[N - 1];
-      const ot = lowerOffset(N - 1);
-      targetCtx.lineTo(tail.x + ot.dx, tail.y + ot.dy);
-      // 下沿：tail → head（继续当前 sub-path）
-      tracePath(targetCtx, model, lowerOffset, true, false);
-      targetCtx.closePath();
-    }
-
-    function makeGradient(targetCtx, model) {
-      const particles = model.particles;
-      const head = particles[0];
-      const tail = particles[N - 1];
-      const grad = targetCtx.createLinearGradient(head.x, head.y, tail.x, tail.y);
-      const stride = 2;
-      for (let i = 0; i < N; i += stride) {
-        grad.addColorStop(i / (N - 1), colorStrCache[i]);
-      }
+    /** tip→tail 渐变：头部延长段 alpha 0 → 到 p0 处变实色 → 其后沿 colorStrCache。 */
+    function makeGradient(targetCtx, model, yScale, head) {
+      const p0 = model.particles[0];
+      const tail = model.particles[N - 1];
+      const grad = targetCtx.createLinearGradient(head.tipX, head.tipY, tail.x, tail.y / yScale);
+      const c0 = baseHsl[0];
+      grad.addColorStop(0, hsla((c0.h + hueOffset) % 360, c0.s, c0.l, 0));   // 尖点透明
+      const f0 = head.f0;
+      grad.addColorStop(f0, colorStrCache[0]);                                // 光标中心起实色
+      for (let i = 2; i < N; i += 2) grad.addColorStop(f0 + (1 - f0) * (i / (N - 1)), colorStrCache[i]);
       grad.addColorStop(1, colorStrCache[N - 1]);
       return grad;
     }
 
-    function drawCoreBand(targetCtx, model) {
-      drawTaperedBand(targetCtx, model);
-      targetCtx.fillStyle = makeGradient(targetCtx, model);
-      targetCtx.fill();
-    }
-
-    function drawLineMode(targetCtx, model) {
-      const tangents = model.tangents;
+    /** 各向异性圆头笔刷沿中心线描边：
+     *  block → 笔刷宽 visX、竖直拉伸到 visY（scale(1, visY/visX)）；圆头融入光标、斜向无缝、无棱角。
+     *  line  → 不拉伸，细描边。glow 会带 shadow 多次调用本函数。 */
+    function paintTrail(targetCtx, model, grad, yScale, lineWidth, head) {
+      targetCtx.save();
+      targetCtx.scale(1, yScale);
       targetCtx.beginPath();
-      const centerOffset = () => ({ dx: 0, dy: 0 });
-      tracePath(targetCtx, model, centerOffset, false);
-      const t0 = tangents[Math.floor(N / 2)];
-      const visX = model.sizeX * CONFIG.CURSOR_VISUAL_X_SCALE;
-      const visY = model.sizeY * CONFIG.CURSOR_VISUAL_Y_SCALE;
-      const baseThick = visX * Math.abs(t0.y) + visY * Math.abs(t0.x);
-      targetCtx.lineWidth = Math.max(2, baseThick * 0.4);
+      traceCenterline(targetCtx, model, yScale, head);
+      targetCtx.lineWidth = lineWidth;
       targetCtx.lineJoin = 'round';
       targetCtx.lineCap = 'round';
-      targetCtx.strokeStyle = makeGradient(targetCtx, model);
+      targetCtx.strokeStyle = grad;
       targetCtx.stroke();
+      targetCtx.restore();
     }
 
-    function drawTrailShape(targetCtx, model) {
-      if (CONFIG.STYLE === 'line') drawLineMode(targetCtx, model);
-      else drawCoreBand(targetCtx, model);
+    /** 取该 model 的笔刷参数：yScale（竖直各向异性）+ lineWidth（缩放空间内的宽度）。 */
+    function brushOf(model) {
+      const visX = model.sizeX * CONFIG.CURSOR_VISUAL_X_SCALE;
+      const visY = model.sizeY * CONFIG.CURSOR_VISUAL_Y_SCALE;
+      if (CONFIG.STYLE === 'line') {
+        return { yScale: 1, lineWidth: Math.max(2, Math.min(visX, visY) * 0.5) };
+      }
+      const yScale = clamp(visY / visX, 0.2, 6);
+      return { yScale, lineWidth: visX * CONFIG.BAND_WIDTH_RATIO };
     }
 
-    /** 烟雾粒子：每个是一个软径向渐变圆。peakAlpha 控制中心不透明度，0→1 之间。
-     *  调用方决定渲染目标（主画布 lighter / bloom 画布默认 source-over）。 */
-    function drawSmokeShapes(targetCtx, model, peakAlpha) {
+    /** 烟雾：软径向渐变圆。'lighter' 叠加；每颗 peak 已含速度浓度倍率。 */
+    function drawSmokeShapes(targetCtx, model) {
       const smokes = model.smokes;
-      if (smokes.length === 0) return;
-      // 烟雾用 tail 处的色相，与拖尾色调保持一致
       const c = baseHsl[N - 1];
       const h = (c.h + hueOffset) % 360;
       const baseColor = `${h.toFixed(0)}, ${c.s.toFixed(0)}%, ${c.l.toFixed(0)}%`;
       for (let i = 0; i < smokes.length; i++) {
         const s = smokes[i];
-        const t = s.age / s.life;             // 0..1 寿命进度
-        const alpha = (1 - t) * peakAlpha;    // 线性渐隐
+        const t = s.age / s.life;
+        const alpha = (1 - t) * s.peak;
         const r = s.baseR * (1 + t * CONFIG.SMOKE_GROWTH);
         const grad = targetCtx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
         grad.addColorStop(0, `hsla(${baseColor}, ${alpha.toFixed(3)})`);
@@ -546,46 +407,48 @@
       }
     }
 
-    /* ---- 三阶段渲染（多光标共享 bloom 合成） ---- */
+    /* ---- 渲染：单次 source-over 填充 + shadowBlur 贴边泛光 ----
+     * shadow 由同一次 fill 投在形状外圈，本体不被二次叠加 → 不会过曝发白。
+     * GLOW_PASSES 多遍只加厚 shadow 光晕（每遍 shadowColor 带 alpha），本体颜色稳定。 */
 
-    function drawTrailToBloom(model) {
-      bctx.save();
-      bctx.scale(CONFIG.BLOOM_DOWNSCALE, CONFIG.BLOOM_DOWNSCALE);
-      // 该 trail 的 idle 淡出在此处通过 globalAlpha 单独应用
-      bctx.globalAlpha = model.globalAlpha;
-      drawTrailShape(bctx, model);
-      // 烟雾：bloom 画布上画一份高 peak alpha → 后续 blur+lighter 合成提供柔和光晕
-      if (CONFIG.SMOKE_ENABLED) drawSmokeShapes(bctx, model, CONFIG.SMOKE_BLOOM_PEAK_ALPHA);
-      bctx.restore();
-    }
-
-    function compositeBloom() {
-      // 'lighter' 加法叠加。CONFIG 里 alpha 已调低，使得"两层 bloom + 邻近粒子 blur"的最大累加不会
-      // 把亮色通道推到 1.0，从而避免发白。CORE 用 source-over 在最上层覆盖光带本身。
+    function drawTrailGlow(model) {
       ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.filter = `blur(${CONFIG.BLOOM_OUTER_BLUR_PX}px)`;
-      ctx.globalAlpha = CONFIG.BLOOM_OUTER_ALPHA;
-      ctx.drawImage(bloomCanvas, 0, 0, width, height);
-      ctx.filter = `blur(${CONFIG.BLOOM_INNER_BLUR_PX}px)`;
-      ctx.globalAlpha = CONFIG.BLOOM_INNER_ALPHA;
-      ctx.drawImage(bloomCanvas, 0, 0, width, height);
+      const { yScale, lineWidth } = brushOf(model);
+      // 本体可见度 = idle 淡出 × 长度淡出：拖尾收缩到≈光标尺寸时随实心条一起消失，
+      // 不让占位圆头在条已没后还靠 idle/烟雾时长残留。
+      const visX = model.sizeX * CONFIG.CURSOR_VISUAL_X_SCALE;
+      const visY = model.sizeY * CONFIG.CURSOR_VISUAL_Y_SCALE;
+      const ref = Math.max(visX, visY);
+      const p = model.particles;
+      const span = Math.hypot(p[N - 1].x - p[0].x, p[N - 1].y - p[0].y);
+      const lengthAlpha = clamp((span - ref * 0.5) / ref, 0, 1);
+      ctx.globalAlpha = model.globalAlpha * CONFIG.CORE_ALPHA * lengthAlpha;
+      if (ctx.globalAlpha < 0.003) { ctx.restore(); return; }   // 条已消失：跳过（烟雾在别处单独画）
+      const head = headExtent(model, yScale, lineWidth);
+      const grad = makeGradient(ctx, model, yScale, head);
+      // 阴影发光遍：本体颜色不变，只靠 shadow 在形状外圈叠出光晕
+      if (CONFIG.GLOW_BLUR_PX > 0 && CONFIG.GLOW_PASSES > 0) {
+        const c = baseHsl[Math.floor(N / 2)];
+        ctx.shadowColor = hsla((c.h + hueOffset) % 360, c.s, c.l, 1);
+        ctx.shadowBlur = CONFIG.GLOW_BLUR_PX;
+        for (let pass = 0; pass < CONFIG.GLOW_PASSES; pass++) paintTrail(ctx, model, grad, yScale, lineWidth, head);
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+      }
+      // 本体（无阴影）一次描边，颜色干净不过曝
+      paintTrail(ctx, model, grad, yScale, lineWidth, head);
       ctx.restore();
     }
 
-    function drawTrailToMain(model) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = model.globalAlpha * CONFIG.CORE_ALPHA;
-      drawTrailShape(ctx, model);
-      ctx.restore();
-      // 烟雾：在主画布上以 lighter 叠加一层，提供肉眼可见的"核"，
-      // 与 bloom 画布上的那一层共同形成"核 + 外晕"的烟雾视觉。
-      if (CONFIG.SMOKE_ENABLED && model.smokes.length > 0) {
+    function drawTrailGlowSmoke(model) {
+      drawTrailGlow(model);
+      if (model.smokes.length > 0) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = model.globalAlpha;
-        drawSmokeShapes(ctx, model, CONFIG.SMOKE_MAIN_PEAK_ALPHA);
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        drawSmokeShapes(ctx, model);
         ctx.restore();
       }
     }
@@ -593,25 +456,24 @@
     return {
       updateSize,
       clear,
-      drawTrailToBloom,
-      compositeBloom,
-      drawTrailToMain,
+      drawTrail: SMOKE ? drawTrailGlowSmoke : drawTrailGlow,
     };
   }
 
   /* --------------------------- bootstrap ---------------------------
-   * canvas 挂在 document.body 上，position:fixed + 100vw×100vh，使用视口绝对坐标，
-   * 这样无论 vscode 内部如何 split / 切换 / 改布局，绘制位置都不会错位。
-   * 抓取范围：document.querySelectorAll('.monaco-editor .cursor')，覆盖所有编辑器组与 diff 视图两侧。
+   * canvas 挂 document.body，fixed + 100vw×100vh 视口绝对坐标，不受 split/布局影响。
+   * 抓取 '.monaco-editor .cursor'，覆盖所有编辑器组与 diff 两侧。
    */
 
   let scene = null;
-  /** Map<cursorId: string, { model, target, lastX, lastY }> — 每光标独立状态 */
+  /** Map<cursorId, { model, target, lastX, lastY }> */
   const trails = new Map();
   let isScrolling = false;
   let scrollResetTimeout = null;
   let isFocused = document.hasFocus();
   let rafId = null;
+  const minFrameMs = CONFIG.MAX_FPS > 0 ? 1000 / CONFIG.MAX_FPS : 0;
+  let lastDrawMs = 0;
 
   function bootstrap() {
     const canvas = document.createElement('canvas');
@@ -626,24 +488,18 @@
 
     scene = createTrailScene(canvas);
     updateCanvasSize();
-
     window.addEventListener('resize', updateCanvasSize);
 
-    // 滚动是"屏幕动而 cursor 没动"，物理跟随会画出一条假性拖尾，必须屏蔽。
+    // 滚动是"屏幕动而 cursor 没动"，链跟随会画假拖尾，需屏蔽
     document.addEventListener('scroll', () => {
       isScrolling = true;
       clearTimeout(scrollResetTimeout);
       scrollResetTimeout = setTimeout(() => { isScrolling = false; }, 100);
     }, { capture: true, passive: true });
 
-    window.addEventListener('focus', () => {
-      isFocused = true;
-      startAnimation();
-    });
+    window.addEventListener('focus', () => { isFocused = true; startAnimation(); });
     window.addEventListener('blur', () => {
-      isFocused = false;
-      stopAnimation();
-      if (scene) scene.clear();
+      isFocused = false; stopAnimation(); if (scene) scene.clear();
     });
 
     setInterval(scanCursors, CONFIG.CURSOR_POLLING_MS);
@@ -667,41 +523,37 @@
       if (!trails.has(id)) {
         const model = createTrailModel();
         const rect = target.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) {
-          model.updateCursorSize(rect.width, rect.height);
-        }
+        if (rect.width > 0 && rect.height > 0) model.updateCursorSize(rect.width, rect.height);
         trails.set(id, { model, target, lastX: NaN, lastY: NaN });
       }
     });
-    for (const id of trails.keys()) {
-      if (!seen.has(id)) trails.delete(id);
-    }
+    for (const id of trails.keys()) if (!seen.has(id)) trails.delete(id);
   }
 
   function animate(nowMs) {
-    if (!isFocused) {
-      rafId = null;
-      return;
-    }
+    if (!isFocused) { rafId = null; return; }
     rafId = requestAnimationFrame(animate);
     if (!scene) return;
 
+    // MAX_FPS 限帧：跳过本次绘制但不累计 dt（下次用真实间隔）
+    if (minFrameMs && lastDrawMs && nowMs - lastDrawMs < minFrameMs) return;
+
     const dt = lastTimeMs ? (nowMs - lastTimeMs) / 1000 : 0;
     lastTimeMs = nowMs;
+    lastDrawMs = nowMs;
     hueOffset = (hueOffset + dt * CONFIG.HUE_SPEED_DEG_PER_SEC) % 360;
 
     let anyVisible = false;
     for (const data of trails.values()) {
       const { model, target } = data;
       const cs = getComputedStyle(target);
-      // 不可见（visibility / display / opacity）→ 跳过位置同步，物理仍推进让其自然淡出
+      // 不可见（visibility/display/opacity）→ 跳过位置同步，物理仍推进让其自然淡出
       if (cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0') {
         const rect = target.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0 &&
             (rect.left !== data.lastX || rect.top !== data.lastY)) {
           model.updateCursorSize(rect.width, rect.height);
-          // 滚动期间硬重置；正常移动走 move()（内部按淡出状态决定是否 reseed）
-          if (isScrolling) model.setImmediate(rect.left, rect.top);
+          if (isScrolling) model.setImmediate(rect.left, rect.top);   // 滚动硬重置
           else model.move(rect.left, rect.top);
           data.lastX = rect.left;
           data.lastY = rect.top;
@@ -711,30 +563,21 @@
       if (model.visible) anyVisible = true;
     }
 
-    if (!anyVisible) {
-      scene.clear();
-      return;
-    }
+    if (!anyVisible) { scene.clear(); return; }
 
-    if (frameCounter % CONFIG.HUE_UPDATE_EVERY === 0) refreshSharedColors();
-    frameCounter++;
+    // 色串刷新时间节流（与渲染帧率解耦）
+    colorAccum += dt;
+    if (colorAccum >= 1 / CONFIG.COLOR_REFRESH_HZ) { colorAccum = 0; refreshSharedColors(); }
 
-    // 三阶段渲染：所有 trail 共用一份 bloom 合成 → 多光标也只一次模糊
     scene.clear();
-    for (const data of trails.values()) if (data.model.visible) scene.drawTrailToBloom(data.model);
-    scene.compositeBloom();
-    for (const data of trails.values()) if (data.model.visible) scene.drawTrailToMain(data.model);
+    for (const data of trails.values()) if (data.model.visible) scene.drawTrail(data.model);
   }
 
   function startAnimation() {
     if (rafId === null && isFocused) rafId = requestAnimationFrame(animate);
   }
-
   function stopAnimation() {
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
+    if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
   }
 
   if (document.readyState === 'loading') {
