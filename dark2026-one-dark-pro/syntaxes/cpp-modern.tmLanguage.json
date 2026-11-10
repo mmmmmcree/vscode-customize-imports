@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "dark2026.cpp.modern",
+  "injectionSelector": "L:source.cpp - comment - string - meta.preprocessor - meta.declaration.concept.cpp",
+  "patterns": [
+    {
+      "name": "meta.declaration.concept.cpp",
+      "begin": "\\s*\\b(concept)\\b",
+      "beginCaptures": {
+        "1": { "name": "keyword.other.concept.cpp" }
+      },
+      "end": "(?==|;|\\{|\\})",
+      "patterns": [
+        { "include": "source.cpp#comments" },
+        {
+          "name": "entity.name.type.concept.cpp",
+          "match": "\\b[[:alpha:]_][[:alnum:]_]*\\b"
+        }
+      ]
+    },
+    {
+      "match": "\\s*\\b(noexcept)\\b",
+      "captures": {
+        "1": { "name": "keyword.operator.noexcept.cpp" }
+      }
+    },
+    {
+      "match": "(?<=^|;)[ \\t]*(?:(export)[ \\t]+)?(import)\\b(?=[ \\t]*(?:[[:alpha:]_:<\"]|$))",
+      "captures": {
+        "1": { "name": "keyword.other.export.cpp" },
+        "2": { "name": "keyword.other.import.cpp" }
+      }
+    }
+  ]
+}

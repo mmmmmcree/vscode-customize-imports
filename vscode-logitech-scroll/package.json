@@ -1,0 +1,34 @@
+{
+  "name": "logitech-horizontal-scroll",
+  "displayName": "Logitech Horizontal Scroll",
+  "description": "Smooth horizontal scrolling for editor code and tabs using mouse shortcuts.",
+  "version": "0.1.1",
+  "publisher": "local-tools",
+  "license": "MIT",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Other"],
+  "extensionKind": ["ui"],
+  "main": "./src/extension.js",
+  "files": ["src/**/*.js", "media/*.js", "Logitech_horizontal_scroll_patch.md"],
+  "scripts": {
+    "check": "node --check src/extension.js && node --check media/Logitech_horizontal_scroll_patch.js",
+    "package": "python ../scripts/package_vsix.py ."
+  },
+  "contributes": {
+    "commands": [
+      { "command": "logitechScroll.enable", "title": "启用或更新横滚补丁", "category": "Logitech" },
+      { "command": "logitechScroll.disable", "title": "停用横滚补丁", "category": "Logitech" }
+    ],
+    "configuration": {
+      "title": "Logitech Horizontal Scroll",
+      "properties": {
+        "logitechScroll.stepPX": { "type": "number", "default": 320, "minimum": 1, "maximum": 4000, "description": "代码横滚步长。修改设置后运行启用或更新横滚补丁命令。" },
+        "logitechScroll.tabStepPX": { "type": "number", "default": 120, "minimum": 1, "maximum": 4000, "description": "标签栏横滚步长。" },
+        "logitechScroll.tabSpeedMultiplier": { "type": "number", "default": 4, "minimum": 0.1, "maximum": 100, "description": "标签栏速度倍率。" },
+        "logitechScroll.durationMS": { "type": "number", "default": 500, "minimum": 0, "maximum": 2000, "description": "平滑动画时长；0 表示立即滚动。" },
+        "logitechScroll.maxPendingSteps": { "type": "integer", "default": 1024, "minimum": 1, "maximum": 1024, "description": "最多积压的滚动步数。" },
+        "logitechScroll.invert": { "type": "boolean", "default": true, "description": "反转横滚方向。" }
+      }
+    }
+  }
+}

@@ -1,0 +1,65 @@
+/* The bundled script enables this class only while the color theme is selected. */
+.dark2026-synthwave .monaco-editor .view-line [class*="mtk"] {
+  --synthwave-glow-strength: 0.10;
+  text-shadow:
+    0 0 2px color-mix(in srgb, currentColor calc(75% * var(--synthwave-glow-strength)), transparent),
+    0 0 calc(2px + 5px * var(--synthwave-glow-strength))
+      color-mix(in srgb, currentColor calc(45% * var(--synthwave-glow-strength)), transparent);
+}
+.dark2026-synthwave .monaco-editor .view-line [class*="bracket-highlighting-"] {
+  --synthwave-glow-strength: 0.08;
+  text-shadow: 0 0 1px color-mix(in srgb, currentColor calc(8% * var(--synthwave-overall-intensity, 1)), transparent);
+}
+.dark2026-synthwave .activitybar .badge .badge-content {
+  background: linear-gradient(to bottom, #fff951 25%, #fc28a8);
+}
+.dark2026-synthwave .part.editor .tabs-container > .tab {
+  box-shadow: inset 0 -5px 25px #fc28a800;
+  position: relative;
+  transition: box-shadow 1s ease;
+}
+.dark2026-synthwave .part.editor .tabs-container > .tab.active {
+  box-shadow: inset 0 -5px 25px #fc28a825;
+}
+.dark2026-synthwave .part.editor .tabs-container > .tab.active > .tab-border-top-container {
+  display: none !important;
+}
+.dark2026-synthwave .part.editor .tabs-container > .tab > .tab-border-bottom-container {
+  display: block !important;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 4px !important;
+  background-image: linear-gradient(to right, #fc28a8, #03edf9) !important;
+  /* Both states share this transition so opacity and clipping reverse together. */
+  opacity: 0;
+  clip-path: inset(0 100% 0 0);
+  transition: opacity 1s ease, clip-path 1s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+.dark2026-synthwave .part.editor .tabs-container > .tab.active > .tab-border-bottom-container {
+  opacity: 1;
+  clip-path: inset(0 0 0 0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dark2026-synthwave .part.editor .tabs-container > .tab,
+  .dark2026-synthwave .part.editor .tabs-container > .tab > .tab-border-bottom-container {
+    transition: none !important;
+  }
+}
+.dark2026-synthwave :is(.activitybar, .pane-composite-bar) .action-item.checked {
+  box-shadow: inset 0 -5px 25px #fc28a825;
+}
+.dark2026-synthwave .activitybar .action-item.checked::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(to bottom, #fc28a8, #03edf9);
+  pointer-events: none;
+}
+.dark2026-synthwave :is(.lightbulb-glyph, .codicon-lightbulb, .codicon-lightbulb-autofix) {
+  filter: drop-shadow(0 0 5px #03edf9);
+}

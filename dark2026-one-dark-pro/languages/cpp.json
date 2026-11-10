@@ -1,0 +1,111 @@
+{
+  "tokenColors": [
+    {
+      "name": "C++ namespaces",
+      "scope": [
+        "source.cpp entity.name.namespace",
+        "source.cpp entity.name.type.namespace",
+        "source.cpp entity.name.scope-resolution.namespace.block.cpp",
+        "source.cpp entity.name.scope-resolution.namespace.alias.cpp",
+        "source.cpp entity.name.scope-resolution.namespace.using.cpp"
+      ],
+      "settings": { "foreground": "#7da9c7" }
+    },
+    {
+      "name": "C++ classes and structs",
+      "scope": [
+        "source.cpp entity.name.type.class",
+        "source.cpp entity.name.type.struct",
+        "source.cpp entity.name.class",
+        "source.cpp support.class"
+      ],
+      "settings": { "foreground": "#e5c07b" }
+    },
+    {
+      "name": "C++ concept identifiers",
+      "scope": [
+        "source.cpp entity.name.type.concept",
+        "source.cpp support.type.concept"
+      ],
+      "settings": { "foreground": "#7ec8b5" }
+    },
+    {
+      "name": "C++ declaration keywords and modifiers",
+      "scope": [
+        "source.cpp storage.modifier",
+        "source.cpp storage.type",
+        "source.cpp keyword.other",
+        "source.cpp keyword.operator.noexcept"
+      ],
+      "settings": { "foreground": "#c678dd" }
+    },
+    {
+      "name": "C++ primitive and deduced types",
+      "scope": [
+        "source.cpp storage.type.primitive.cpp",
+        "source.cpp storage.type.built-in.primitive.cpp"
+      ],
+      "settings": { "foreground": "#56b6c2" }
+    },
+    {
+      "name": "C++ compile-time evaluation and initialization",
+      "scope": [
+        "source.cpp storage.modifier.constexpr.cpp",
+        "source.cpp storage.modifier.consteval.cpp",
+        "source.cpp storage.modifier.constinit.cpp",
+        "source.cpp storage.modifier.specifier.functional.pre-parameters.constexpr.cpp",
+        "source.cpp storage.modifier.specifier.functional.pre-parameters.consteval.cpp",
+        "source.cpp storage.modifier.lambda.constexpr.cpp",
+        "source.cpp storage.modifier.lambda.consteval.cpp",
+        "source.cpp keyword.other.constinit.cpp",
+        "source.cpp keyword.other.static_assert.cpp"
+      ],
+      "settings": { "foreground": "#d19a66" }
+    },
+    {
+      "name": "C++ type queries, casts and alignment",
+      "scope": [
+        "source.cpp keyword.other.decltype.cpp",
+        "source.cpp storage.type.decltype.cpp",
+        "source.cpp keyword.operator.sizeof.cpp",
+        "source.cpp keyword.operator.alignof.cpp",
+        "source.cpp keyword.operator.alignas.cpp",
+        "source.cpp keyword.operator.typeid.cpp",
+        "source.cpp keyword.operator.cast.static_cast.cpp",
+        "source.cpp keyword.operator.cast.dynamic_cast.cpp",
+        "source.cpp keyword.operator.cast.const_cast.cpp",
+        "source.cpp keyword.operator.cast.reinterpret_cast.cpp"
+      ],
+      "settings": { "foreground": "#56b6c2" }
+    },
+    {
+      "name": "C++ coroutines",
+      "scope": [
+        "source.cpp keyword.control.co_await",
+        "source.cpp keyword.control.co_yield",
+        "source.cpp keyword.control.co_return"
+      ],
+      "settings": { "foreground": "#c678dd" }
+    },
+    {
+      "name": "C++ modules",
+      "scope": [
+        "source.cpp keyword.other.module",
+        "source.cpp keyword.other.import",
+        "source.cpp keyword.other.export"
+      ],
+      "settings": { "foreground": "#61afef" }
+    },
+    {
+      "name": "C++ attribute names",
+      "scope": "source.cpp entity.other.attribute",
+      "settings": { "foreground": "#d19a66" }
+    }
+  ],
+  "semanticTokenColors": {
+    "namespace:cpp": { "foreground": "#7da9c7" },
+    "class:cpp": { "foreground": "#e5c07b" },
+    "struct:cpp": { "foreground": "#e5c07b" },
+    "concept:cpp": { "foreground": "#7ec8b5" }
+  }
+}

@@ -7,7 +7,7 @@
 (() => {
   'use strict';
 
-  // 修改后执行 “Reload Custom CSS and JS”；也可用下面的 setConfig 临时调参。
+  // 修改后执行 “Logitech: 启用或更新横滚补丁”；也可用下面的 setConfig 临时调参。
   const CONFIG = {
     STEP_PX: 320,            // 每次快捷键产生的横滚输入量；越大越快。
     TAB_STEP_PX: 120,        // 标签栏每次快捷键的横滚输入量，可单独调速。

@@ -12,6 +12,7 @@
  * ========================================================================== */
 
 (() => {
+  window.vscodeCursorTrail?.dispose();
   /* --------------------------- CONFIG --------------------------- */
   const CONFIG = {
     TRAIL_LENGTH: 24,                  // 链粒子数（拖尾长度旋钮之一：越多越长）
@@ -69,6 +70,10 @@
     SMOKE_SPEED_RATE_MULT: 6,        // 满速时喷发率倍率上限
     SMOKE_SPEED_ALPHA_MULT: 1.1,     // 满速时不透明度倍率上限
   };
+
+  const options = window.vscodeCursorTrailOptions || {};
+  CONFIG.MAX_FPS = Number.isFinite(options.MAX_FPS) ? Math.max(15, Math.min(240, options.MAX_FPS)) : 60;
+  CONFIG.SMOKE_ENABLED = options.SMOKE_ENABLED !== false;
 
   const N = CONFIG.TRAIL_LENGTH;
   const SMOKE = CONFIG.SMOKE_ENABLED;
@@ -299,7 +304,9 @@
 
     function updateSize(w, h) {
       width = w; height = h;
-      canvas.width = w; canvas.height = h;
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(w * ratio); canvas.height = Math.round(h * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     }
     function clear() {
       ctx.clearRect(0, 0, width, height);
@@ -460,129 +467,129 @@
     };
   }
 
-  /* --------------------------- bootstrap ---------------------------
-   * canvas 挂 document.body，fixed + 100vw×100vh 视口绝对坐标，不受 split/布局影响。
-   * 抓取 '.monaco-editor .cursor'，覆盖所有编辑器组与 diff 两侧。
-   */
-
+  /* Shared canvas; cursor discovery continues at low frequency while drawing is idle. */
   let scene = null;
-  /** Map<cursorId, { model, target, lastX, lastY }> */
+  let canvas = null;
   const trails = new Map();
+  const removers = [];
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let disposed = false;
   let isScrolling = false;
   let scrollResetTimeout = null;
+  let scanTimer = null;
   let isFocused = document.hasFocus();
   let rafId = null;
-  const minFrameMs = CONFIG.MAX_FPS > 0 ? 1000 / CONFIG.MAX_FPS : 0;
+  const minFrameMs = 1000 / CONFIG.MAX_FPS;
   let lastDrawMs = 0;
 
-  function bootstrap() {
-    const canvas = document.createElement('canvas');
-    canvas.style.pointerEvents = 'none';
-    canvas.style.position = 'fixed';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.width = '100vw';
-    canvas.style.height = '100vh';
-    canvas.style.zIndex = '9999';
-    document.body.appendChild(canvas);
+  function listen(target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    removers.push(() => target.removeEventListener(type, listener, options));
+  }
 
+  function syncCursor(data) {
+    const { target, model } = data;
+    const cs = getComputedStyle(target);
+    if (cs.visibility === 'hidden' || cs.display === 'none' || cs.opacity === '0') return false;
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0 || (rect.left === data.lastX && rect.top === data.lastY)) return false;
+    model.updateCursorSize(rect.width, rect.height);
+    if (isScrolling) model.setImmediate(rect.left, rect.top);
+    else model.move(rect.left, rect.top);
+    data.lastX = rect.left; data.lastY = rect.top;
+    return true;
+  }
+
+  function scanCursors() {
+    if (disposed || !isFocused || document.hidden || reducedMotion.matches) return;
+    const seen = new Set();
+    let changed = false;
+    for (const target of document.querySelectorAll('.monaco-editor .cursor')) {
+      if (seen.size >= 64) break;
+      seen.add(target);
+      if (!trails.has(target)) trails.set(target, { model: createTrailModel(), target, lastX: NaN, lastY: NaN });
+      changed = syncCursor(trails.get(target)) || changed;
+    }
+    for (const target of trails.keys()) if (!seen.has(target)) trails.delete(target);
+    if (changed) startAnimation();
+    if (!trails.size) { stopAnimation(); scene?.clear(); }
+  }
+
+  function animate(nowMs) {
+    rafId = null;
+    if (disposed || !isFocused || document.hidden || reducedMotion.matches || !scene) return;
+    if (lastDrawMs && nowMs - lastDrawMs < minFrameMs) { rafId = requestAnimationFrame(animate); return; }
+    const dt = lastTimeMs ? Math.min((nowMs - lastTimeMs) / 1000, 0.25) : 0;
+    lastTimeMs = nowMs; lastDrawMs = nowMs;
+    hueOffset = (hueOffset + dt * CONFIG.HUE_SPEED_DEG_PER_SEC) % 360;
+    let anyVisible = false;
+    for (const data of trails.values()) {
+      syncCursor(data);
+      data.model.tickPhysics(dt);
+      if (data.model.visible) anyVisible = true;
+    }
+    scene.clear();
+    if (!anyVisible) return;
+    colorAccum += dt;
+    if (colorAccum >= 1 / CONFIG.COLOR_REFRESH_HZ) { colorAccum = 0; refreshSharedColors(); }
+    for (const data of trails.values()) if (data.model.visible) scene.drawTrail(data.model);
+    rafId = requestAnimationFrame(animate);
+  }
+
+  function startAnimation() {
+    if (rafId === null && !disposed && isFocused && !document.hidden && !reducedMotion.matches) {
+      lastTimeMs = 0; lastDrawMs = 0;
+      rafId = requestAnimationFrame(animate);
+    }
+  }
+  function stopAnimation() {
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    rafId = null; lastTimeMs = 0; lastDrawMs = 0;
+  }
+  function updateCanvasSize() { scene?.updateSize(window.innerWidth, window.innerHeight); }
+  function focusChanged() {
+    isFocused = document.hasFocus();
+    if (isFocused && !document.hidden && !reducedMotion.matches) { scanCursors(); startAnimation(); }
+    else { stopAnimation(); scene?.clear(); }
+  }
+  function bootstrap() {
+    if (disposed) return;
+    canvas = document.createElement('canvas');
+    canvas.id = 'customize-imports-cursor-trail';
+    Object.assign(canvas.style, { pointerEvents: 'none', position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh', zIndex: '9999' });
+    document.body.appendChild(canvas);
     scene = createTrailScene(canvas);
     updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-
-    // 滚动是"屏幕动而 cursor 没动"，链跟随会画假拖尾，需屏蔽
-    document.addEventListener('scroll', () => {
+    listen(window, 'resize', updateCanvasSize);
+    listen(document, 'scroll', () => {
       isScrolling = true;
       clearTimeout(scrollResetTimeout);
       scrollResetTimeout = setTimeout(() => { isScrolling = false; }, 100);
     }, { capture: true, passive: true });
-
-    window.addEventListener('focus', () => { isFocused = true; startAnimation(); });
-    window.addEventListener('blur', () => {
-      isFocused = false; stopAnimation(); if (scene) scene.clear();
-    });
-
-    setInterval(scanCursors, CONFIG.CURSOR_POLLING_MS);
+    listen(window, 'focus', focusChanged);
+    listen(window, 'blur', () => { isFocused = false; stopAnimation(); scene?.clear(); });
+    listen(document, 'visibilitychange', focusChanged);
+    listen(reducedMotion, 'change', focusChanged);
+    listen(document, 'keydown', startAnimation, true);
+    listen(document, 'pointerup', () => { scanCursors(); startAnimation(); }, true);
+    scanTimer = setInterval(scanCursors, CONFIG.CURSOR_POLLING_MS);
+    refreshSharedColors();
     scanCursors();
-    startAnimation();
   }
-
-  function updateCanvasSize() {
-    if (scene) scene.updateSize(window.innerWidth, window.innerHeight);
-  }
-
-  function scanCursors() {
-    const seen = new Set();
-    document.querySelectorAll('.monaco-editor .cursor').forEach((target) => {
-      let id = target.getAttribute('trail-cursor-id');
-      if (!id) {
-        id = 'c' + Math.random().toString(36).substring(2, 10);
-        target.setAttribute('trail-cursor-id', id);
-      }
-      seen.add(id);
-      if (!trails.has(id)) {
-        const model = createTrailModel();
-        const rect = target.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) model.updateCursorSize(rect.width, rect.height);
-        trails.set(id, { model, target, lastX: NaN, lastY: NaN });
-      }
-    });
-    for (const id of trails.keys()) if (!seen.has(id)) trails.delete(id);
-  }
-
-  function animate(nowMs) {
-    if (!isFocused) { rafId = null; return; }
-    rafId = requestAnimationFrame(animate);
-    if (!scene) return;
-
-    // MAX_FPS 限帧：跳过本次绘制但不累计 dt（下次用真实间隔）
-    if (minFrameMs && lastDrawMs && nowMs - lastDrawMs < minFrameMs) return;
-
-    const dt = lastTimeMs ? (nowMs - lastTimeMs) / 1000 : 0;
-    lastTimeMs = nowMs;
-    lastDrawMs = nowMs;
-    hueOffset = (hueOffset + dt * CONFIG.HUE_SPEED_DEG_PER_SEC) % 360;
-
-    let anyVisible = false;
-    for (const data of trails.values()) {
-      const { model, target } = data;
-      const cs = getComputedStyle(target);
-      // 不可见（visibility/display/opacity）→ 跳过位置同步，物理仍推进让其自然淡出
-      if (cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0') {
-        const rect = target.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0 &&
-            (rect.left !== data.lastX || rect.top !== data.lastY)) {
-          model.updateCursorSize(rect.width, rect.height);
-          if (isScrolling) model.setImmediate(rect.left, rect.top);   // 滚动硬重置
-          else model.move(rect.left, rect.top);
-          data.lastX = rect.left;
-          data.lastY = rect.top;
-        }
-      }
-      model.tickPhysics(dt);
-      if (model.visible) anyVisible = true;
-    }
-
-    if (!anyVisible) { scene.clear(); return; }
-
-    // 色串刷新时间节流（与渲染帧率解耦）
-    colorAccum += dt;
-    if (colorAccum >= 1 / CONFIG.COLOR_REFRESH_HZ) { colorAccum = 0; refreshSharedColors(); }
-
-    scene.clear();
-    for (const data of trails.values()) if (data.model.visible) scene.drawTrail(data.model);
-  }
-
-  function startAnimation() {
-    if (rafId === null && isFocused) rafId = requestAnimationFrame(animate);
-  }
-  function stopAnimation() {
-    if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bootstrap);
-  } else {
-    bootstrap();
-  }
+  const api = {
+    getStats: () => ({ cursors: trails.size, animating: rafId !== null, maxFPS: CONFIG.MAX_FPS, disposed }),
+    dispose() {
+      disposed = true;
+      stopAnimation();
+      clearInterval(scanTimer);
+      clearTimeout(scrollResetTimeout);
+      removers.splice(0).forEach(remove => remove());
+      trails.clear();
+      canvas?.remove(); canvas = null; scene = null;
+      if (window.vscodeCursorTrail === api) delete window.vscodeCursorTrail;
+    },
+  };
+  window.vscodeCursorTrail = api;
+  if (document.readyState === 'loading') listen(document, 'DOMContentLoaded', bootstrap, { once: true });
+  else bootstrap();
 })();

@@ -1,0 +1,17 @@
+{
+  "displayName": "SCM Line Stats · 變更行數",
+  "description": "在 Git 原生變更、暫存的變更和檔案上暫留查看新增、刪除行數。",
+  "title": "變更統計",
+  "enable": "啟用原生暫留",
+  "refresh": "重新整理變更行數",
+  "openDiff": "開啟變更比較",
+  "output": "查看記錄",
+  "presentation": "統計顯示位置。原生彩色暫留會自動啟用，首次安裝後請重新載入視窗。",
+  "native": "整合到 Git 原生變更和暫存的變更。",
+  "panel": "使用獨立的變更統計檢視。",
+  "displayMode": "增減行數的顯示方式。",
+  "hover": "彩色暫留卡片：增減行數文字與比例條（使用 Custom CSS and JS Loader 自動啟用）。",
+  "inline": "在清單中持續顯示增減行數。",
+  "untracked": "將未追蹤的文字檔案計入「變更」的新增行數。",
+  "delay": "自動重新整理前的等待時間（毫秒）。"
+}

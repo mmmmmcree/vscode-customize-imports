@@ -1,0 +1,9 @@
+{
+  "colors": {
+    "tab.activeBorderTop": "#00000000",
+    "tab.unfocusedActiveBorderTop": "#00000000",
+    "tab.selectedBorderTop": "#00000000"
+  },
+  "tokenColors": [],
+  "semanticTokenColors": {}
+}

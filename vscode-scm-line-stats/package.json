@@ -1,0 +1,148 @@
+{
+  "name": "scm-line-stats",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "0.2.4",
+  "publisher": "local-tools",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "keywords": [
+    "git",
+    "scm",
+    "diff",
+    "lines",
+    "统计"
+  ],
+  "main": "./src/extension.js",
+  "extensionKind": [
+    "workspace"
+  ],
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "files": [
+    "src/**/*.js",
+    "media/**/*.js"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    },
+    "virtualWorkspaces": {
+      "supported": false
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "check": "node --check src/extension.js && node --check src/git.js && node --check src/native.js && node --check media/native-hover.js && node --check src/renderer.js && node --check media/strings.js && node --check src/folders.js && node --check media/protocol.js",
+    "package": "python ../scripts/package_vsix.py ."
+  },
+  "contributes": {
+    "views": {
+      "scm": [
+        {
+          "id": "scmLineStats.changes",
+          "name": "%title%",
+          "visibility": "visible",
+          "when": "scmLineStats.showPanel"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "scmLineStats.enableNativeHover",
+        "title": "%enable%",
+        "category": "%title%"
+      },
+      {
+        "command": "scmLineStats.refresh",
+        "title": "%refresh%",
+        "category": "%title%",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "scmLineStats.openDiff",
+        "title": "%openDiff%",
+        "category": "%title%"
+      },
+      {
+        "command": "scmLineStats.showOutput",
+        "title": "%output%",
+        "category": "%title%",
+        "icon": "$(output)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "scmLineStats.refresh",
+          "when": "view == scmLineStats.changes",
+          "group": "navigation"
+        },
+        {
+          "command": "scmLineStats.showOutput",
+          "when": "view == scmLineStats.changes",
+          "group": "2_logs"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "scmLineStats.openDiff",
+          "when": "false"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "%title%",
+      "properties": {
+        "scmLineStats.presentation": {
+          "type": "string",
+          "enum": [
+            "native",
+            "panel"
+          ],
+          "default": "native",
+          "enumDescriptions": [
+            "%native%",
+            "%panel%"
+          ],
+          "description": "%presentation%"
+        },
+        "scmLineStats.displayMode": {
+          "type": "string",
+          "enum": [
+            "hover",
+            "inline"
+          ],
+          "default": "hover",
+          "enumDescriptions": [
+            "%hover%",
+            "%inline%"
+          ],
+          "description": "%displayMode%"
+        },
+        "scmLineStats.includeUntracked": {
+          "type": "boolean",
+          "default": true,
+          "description": "%untracked%"
+        },
+        "scmLineStats.refreshDelay": {
+          "type": "number",
+          "default": 400,
+          "minimum": 100,
+          "maximum": 5000,
+          "description": "%delay%"
+        }
+      }
+    }
+  }
+}

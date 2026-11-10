@@ -1,0 +1,17 @@
+{
+  "displayName": "SCM Line Stats",
+  "description": "Hover over native Git changes, staged changes and files to see lines added and deleted.",
+  "title": "Line Stats",
+  "enable": "Enable Native Hover",
+  "refresh": "Refresh Line Counts",
+  "openDiff": "Open Changes",
+  "output": "Show Output",
+  "presentation": "Where to display line counts. Native hover cards are enabled automatically; reload the window after the first installation.",
+  "native": "Integrate into native Git Changes and Staged Changes.",
+  "panel": "Use a separate Line Stats view.",
+  "displayMode": "How to display line counts.",
+  "hover": "Colored hover cards with lines added/deleted and a proportion bar (enabled automatically with Custom CSS and JS Loader).",
+  "inline": "Always show line counts in the list.",
+  "untracked": "Include untracked text files in added lines under Changes.",
+  "delay": "Delay before refreshing after changes (milliseconds)."
+}

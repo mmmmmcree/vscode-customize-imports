@@ -1,0 +1,7 @@
+.editor-group-watermark > .letterpress {
+  background-image: var(--customize-imports-watermark) !important;
+  opacity: 0.95;
+  overflow: visible;
+  filter: none;
+  transform: scale(1.5, 1.5);
+}

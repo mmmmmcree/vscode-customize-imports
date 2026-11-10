@@ -1,0 +1,76 @@
+{
+  "name": "dark2026-one-dark-pro",
+  "displayName": "Dark 2026 + One Dark Pro",
+  "description": "Dark 2026 UI with One Dark Pro syntax and semantic highlighting.",
+  "version": "1.2.6",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.123.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "main": "./src/extension.js",
+  "activationEvents": ["onLanguage:cpp"],
+  "extensionKind": ["ui"],
+  "files": [
+    "themes/**/*.json",
+    "syntaxes/*.tmLanguage.json",
+    "src/**/*.js",
+    "media/*.css",
+    "media/*.js",
+    "Dark2026-OneDarkPro.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "build": "python scripts/build_theme.py",
+    "check": "node --check src/extension.js && node --check src/cpp-concepts.js && node --check media/synthwave84.js",
+    "package": "python ../scripts/package_vsix.py ."
+  },
+  "contributes": {
+    "grammars": [
+      {
+        "scopeName": "dark2026.cpp.modern",
+        "path": "./syntaxes/cpp-modern.tmLanguage.json",
+        "injectTo": ["source.cpp"]
+      }
+    ],
+    "configuration": {
+      "title": "Dark 2026 + One Dark Pro",
+      "properties": {
+        "dark2026OneDarkPro.cppConceptHighlighting": {
+          "type": "boolean", "default": true,
+          "description": "补充 C++ concept 声明和模板约束配色，通过语言服务的转到定义确认引用。"
+        },
+        "dark2026OneDarkPro.glowIntensity": {
+          "type": "number", "default": 1, "minimum": 0, "maximum": 2,
+          "description": "代码光晕总强度。修改后运行启用或更新 Synthwave 光晕命令。"
+        },
+        "dark2026OneDarkPro.frequencyAware": {
+          "type": "boolean", "default": true,
+          "description": "按当前可见代码中各配色语义组的出现频次调整光晕，越常见越弱。"
+        }
+      }
+    },
+    "commands": [
+      { "command": "dark2026OneDarkPro.enableGlow", "title": "启用或更新 Synthwave 光晕", "category": "Dark 2026" },
+      { "command": "dark2026OneDarkPro.disableGlow", "title": "停用 Synthwave 光晕", "category": "Dark 2026" }
+    ],
+    "colors": [
+      {
+        "id": "dark2026OneDarkPro.glow",
+        "description": "Marker for this theme's bundled Synthwave effects.",
+        "defaults": { "dark": "#00000000", "light": "#00000000", "highContrast": "#00000000", "highContrastLight": "#00000000" }
+      }
+    ],
+    "themes": [
+      {
+        "id": "Dark 2026 + One Dark Pro",
+        "label": "Dark 2026 + One Dark Pro",
+        "uiTheme": "vs-dark",
+        "path": "./themes/dark2026-one-dark-pro-color-theme.json"
+      }
+    ]
+  }
+}

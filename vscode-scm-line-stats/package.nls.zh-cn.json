@@ -1,0 +1,17 @@
+{
+  "displayName": "SCM Line Stats · 更改行数",
+  "description": "在 Git 原生更改、暂存的更改和文件上悬停查看新增、删除行数。",
+  "title": "更改统计",
+  "enable": "启用原生悬停",
+  "refresh": "刷新更改行数",
+  "openDiff": "打开更改对比",
+  "output": "查看日志",
+  "presentation": "统计显示位置。原生彩色悬停会自动启用，首次安装后按提示重新加载窗口。",
+  "native": "嵌入 Git 原生更改和暂存的更改。",
+  "panel": "使用独立的更改统计视图。",
+  "displayMode": "增减行数的显示方式。",
+  "hover": "彩色悬停卡片：增减行数文字和比例条（使用 Custom CSS and JS Loader 自动启用）。",
+  "inline": "在列表中持续显示增减行数。",
+  "untracked": "将未跟踪的文本文件计入“更改”的新增行数。",
+  "delay": "自动刷新前的合并等待时间（毫秒）。"
+}

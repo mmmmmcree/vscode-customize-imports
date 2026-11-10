@@ -1,0 +1,42 @@
+.monaco-workbench .quick-input-widget {
+  background: color-mix(in srgb, var(--vscode-quickInput-background) 70%, transparent);
+  backdrop-filter: blur(20px) brightness(1.15);
+}
+.monaco-workbench .quick-input-widget .monaco-inputbox { background: transparent; }
+.monaco-editor .line-numbers.active-line-number {
+  color: var(--vscode-editorLineNumber-activeForeground);
+  text-shadow: 0 0 12px currentColor;
+}
+.monaco-editor :is(.sticky-widget, .monaco-hover) {
+  backdrop-filter: blur(20px) brightness(1.1);
+}
+.monaco-editor .sticky-widget {
+  background: color-mix(in srgb, var(--vscode-editorStickyScroll-background) 75%, transparent);
+}
+.monaco-editor .monaco-hover {
+  background: color-mix(in srgb, var(--vscode-editorHoverWidget-background) 80%, transparent);
+}
+.monaco-editor .cursor {
+  animation: customize-imports-hue 25s linear infinite;
+  background: linear-gradient(rgb(103, 250, 243), rgb(182, 110, 255));
+  border-radius: 2px;
+  overflow: visible !important;
+}
+.monaco-editor .cursor::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  border-radius: 3px;
+  transform: scale(1.4, 1.2);
+  filter: blur(4px) brightness(2);
+  pointer-events: none;
+  z-index: -1;
+}
+@keyframes customize-imports-hue {
+  from { filter: hue-rotate(0deg); }
+  to { filter: hue-rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .monaco-editor .cursor { animation: none; }
+}
