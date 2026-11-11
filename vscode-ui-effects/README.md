@@ -30,11 +30,15 @@ Vim Visual 模式额外绘制的当前字符矩形，也使用相同渐变并搭
 
 顶部搜索、快速打开和命令面板的候选行使用同色系霓虹背景：选中或键盘焦点行较明显，鼠标悬停与被动焦点较淡，选中态优先。调试浮动工具栏使用深色霓虹表面、细渐变边缘和按钮悬停／键盘焦点背景；保留图标颜色、禁用状态、拖动区域和原有尺寸。以上效果跟随 `customizeImports.interfaceStyles` 开关。
 
+编辑器、侧栏和列表等工作台滚动条的滑块使用柔和的紫蓝青渐变与圆角：纵向沿上→下渐变，横向沿左→右渐变，默认、悬停、拖动状态逐级增强。保留原有滑块尺寸、命中区域、轨道和自动隐藏行为；此效果同样跟随 `customizeImports.interfaceStyles`。
+
 界面 CSS 使用主题颜色，不再依赖动态 `.mtkN` 编号或逐 token 的弹跳动画。Synthwave 的代码光晕属于主题插件，独立于本插件开关。
 
 若代码光晕正常但光标变色和拖尾同时消失，先运行 **Customize Imports: 启用或更新界面特效**。主题的启用命令不会注册本插件；正常启用后，`vscode_custom_css.imports` 应包含扩展存储目录中的 `effects.js`。光标变色需要 `customizeImports.interfaceStyles`，拖尾需要 `customizeImports.cursorTrail`，两项默认均为 `true`。
 
-本目录执行 `npm run package`，或从仓库根目录执行 `python scripts/package_vsix.py vscode-ui-effects`，生成 `dist/customize-imports-effects-0.1.7.vsix`。
+本目录执行 `npm run package`，或从仓库根目录执行 `python scripts/package_vsix.py vscode-ui-effects`，生成 `dist/customize-imports-effects-0.1.8.vsix`。
+
+`0.1.8` 将工作台横向、纵向滚动滑块统一为霓虹渐变，区分默认、悬停和拖动状态。
 
 `0.1.7` 统一搜索候选行和调试浮动工具栏的霓虹风格，并将当前行背景改为左→右渐变。
 

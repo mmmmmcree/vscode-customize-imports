@@ -46,6 +46,39 @@
   background-image: var(--customize-imports-row-inactive-gradient) !important;
   outline-color: var(--customize-imports-neon-end) !important;
 }
+
+/* Paint native workbench thumbs without changing size, hit areas or visibility. */
+.monaco-workbench .monaco-scrollable-element > .scrollbar > .slider {
+  --customize-imports-scrollbar-direction: 180deg;
+  --customize-imports-scrollbar-strength: 35%;
+  --customize-imports-scrollbar-edge: 20%;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+.monaco-workbench .monaco-scrollable-element > .scrollbar > .slider::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(var(--customize-imports-scrollbar-direction),
+    color-mix(in srgb, var(--customize-imports-neon-start) var(--customize-imports-scrollbar-strength), transparent),
+    color-mix(in srgb, var(--customize-imports-neon-middle) var(--customize-imports-scrollbar-strength), transparent) 50%,
+    color-mix(in srgb, var(--customize-imports-neon-end) var(--customize-imports-scrollbar-strength), transparent));
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--customize-imports-neon-middle) var(--customize-imports-scrollbar-edge), transparent);
+}
+.monaco-workbench .monaco-scrollable-element > .scrollbar.horizontal > .slider {
+  --customize-imports-scrollbar-direction: 90deg;
+}
+.monaco-workbench .monaco-scrollable-element > .scrollbar > .slider:hover {
+  --customize-imports-scrollbar-strength: 55%;
+  --customize-imports-scrollbar-edge: 32%;
+}
+.monaco-workbench .monaco-scrollable-element > .scrollbar > .slider.active {
+  --customize-imports-scrollbar-strength: 75%;
+  --customize-imports-scrollbar-edge: 45%;
+}
+
 .monaco-editor .line-numbers.active-line-number {
   color: var(--vscode-editorLineNumber-activeForeground);
   text-shadow: 0 0 12px currentColor;
