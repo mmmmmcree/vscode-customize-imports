@@ -130,8 +130,53 @@ async function readImport(value, vscode) {
   }
   // A quoted closing tag in an imported script must not end the HTML element.
   return extension === '.js'
-    ? `<script>${source.replace(/<\/script/gi, '<\\/script')}</script>\n`
+    ? `<script type="text/plain" data-customize-imports-pending>${source.replace(/<\/script/gi, '<\\/script')}</script>\n`
     : `<style>${source.replace(/<\/style/gi, '<\\/style')}</style>\n`;
+}
+
+// Serialized into the workbench. Custom scripts must not run before its first
+// editor frame: the native module bootstrap and Webview setup take priority.
+function startDeferredImports() {
+  function waitForWorkbench() {
+    let observer;
+    let deadline;
+    function ready() {
+      if (!document.querySelector('.monaco-workbench .part.editor')) return false;
+      observer?.disconnect();
+      clearTimeout(deadline);
+      let started = false;
+      function apply() {
+        if (started) return;
+        started = true;
+        for (const pending of document.querySelectorAll('script[data-customize-imports-pending]')) {
+          const script = document.createElement('script');
+          script.textContent = pending.textContent;
+          pending.replaceWith(script);
+        }
+      }
+      // Paint the native shell before custom code. The fallback also handles
+      // hidden windows, whose animation frames can be suspended by Chromium.
+      const fallback = setTimeout(apply, 500);
+      requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => {
+        clearTimeout(fallback);
+        apply();
+      }, 0)));
+      return true;
+    }
+    if (ready()) return;
+    observer = new MutationObserver(ready);
+    observer.observe(document.body, { childList: true, subtree: true });
+    deadline = setTimeout(() => observer.disconnect(), 30000);
+  }
+  if (document.readyState === 'complete') waitForWorkbench();
+  else window.addEventListener('load', waitForWorkbench, { once: true });
+}
+
+function deferImports(injection) {
+  if (!injection) return '';
+  // Inert scripts keep their contents and order without evaluating before the
+  // native startup module. Activation creates ordinary global scripts, no eval.
+  return injection + `<script data-customize-imports-bootstrap>(${startDeferredImports.toString()})();</script>\n`;
 }
 
 async function updateCustomCSS(vscode, prepare) {
@@ -157,7 +202,7 @@ async function updateCustomCSS(vscode, prepare) {
     const session = randomUUID();
     let next = base.replace(/<meta\b[^>]*http-equiv\s*=\s*["']Content-Security-Policy["'][^>]*>/gi, '');
     // A replacement function keeps $&, $` and $' inside user scripts literal.
-    next = next.replace(/<\/head\s*>/i, () => `<!-- !! VSCODE-CUSTOM-CSS-SESSION-ID ${session} !! -->\n${START}\n${injection}${END}\n</head>`);
+    next = next.replace(/<\/head\s*>/i, () => `<!-- !! VSCODE-CUSTOM-CSS-SESSION-ID ${session} !! -->\n${START}\n${deferImports(injection)}${END}\n</head>`);
     const loader = vscode.extensions.getExtension('be5invis.vscode-custom-css');
     if (config.get('statusbar', true) && loader?.extensionPath) {
       const indicator = await fs.readFile(path.join(loader.extensionPath, 'src', 'statusbar.js'), 'utf8');

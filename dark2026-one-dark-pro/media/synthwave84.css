@@ -15,6 +15,13 @@
   --synthwave-card-divider: color-mix(in srgb, var(--synthwave-neon-middle) 25%, transparent);
 }
 
+/* Keep the native titlebar icon's layout, menu actions and fullscreen visibility. */
+.dark2026-synthwave .part.titlebar .window-appicon:not(.codicon) {
+  background-image: var(--synthwave-app-icon) !important;
+  background-size: 20px !important;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--synthwave-neon-middle) 35%, transparent));
+}
+
 /* Keep both endpoints on the pseudo-element so entry/exit can reverse smoothly.
    Scaling only the painted strip preserves its glow and the native drag target. */
 .dark2026-synthwave .monaco-sash::before {

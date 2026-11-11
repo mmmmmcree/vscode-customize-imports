@@ -4,6 +4,8 @@ Dark 2026 的界面、One Dark Pro 的代码配色和 Synthwave 光晕一起打�
 
 `theme-overrides.json` 保存跨语言定制，`languages/*.json` 保存各语言的配色扩展，构建时依次合并到上游配色之后。语言特有的语法适合独立维护规则文件，随同一主题发布。
 
+自定义标题栏左上角的 VS Code 图标随 Synthwave 替换为 `media/vscode-neon.png`，使用用户提供的 [Icons8 图标](https://icons8.com/icons/set/visual-studio-code)，保留原有紫蓝配色并增加低强度光晕。启用时将 PNG 内嵌为 CSS 数据地址，不依赖扩展版本路径或 Loader 解析相对图片路径。样式仅覆盖 `.dark2026-synthwave .part.titlebar .window-appicon:not(.codicon)` 的背景与光晕，保留原生尺寸、菜单交互和全屏隐藏规则；其他主题及停用状态恢复原图。系统原生标题栏、任务栏和桌面快捷方式的图标由系统绘制，不在此效果范围内。
+
 当前行号、工作台原生主按钮和调试底栏使用 Synthwave 渐变效果。单个原生主题色只能表达单色，渐变、光晕和动画由随扩展打包的 CSS 实现，需要启用 Custom CSS and JS Loader 并运行 **Dark 2026: 启用或更新 Synthwave 光晕**。渐变的三个色点通过主题贡献颜色暴露，可自由覆盖：
 
 | 颜色项 | 配色 |
@@ -80,6 +82,8 @@ python scripts/install.py --plugin dark2026-one-dark-pro
 
 更新器在跨进程互斥内生成页面，校验原生启动脚本及必需效果后原子替换，完整页面保留为最近可用备份。SCM 启动检查不再自动改写页面，避免同时启用光晕时两次更新交叠导致入口被写空。Loader 的会话备份格式与停用操作继续兼容。
 
+特效脚本在 HTML 中先保存为不执行的脚本节点；共用启动器等待页面加载完成及原生编辑器容器出现，再跨过绘制帧激活，保留各导入的顺序和全局脚本语义。隐藏窗口使用 500 毫秒兜底，原生界面未出现时不抢先执行特效。脚本激活一次后停止启动观察器。代码光晕只读取内联的 token 与装饰配色表，不遍历大型外部工作台样式表。此调度降低特效在启动关键路径上的开销，但不修复 Webview 的浏览器缓存；Service Worker 注册失败的恢复方式见 [scripts/README.md](../scripts/README.md)。
+
 代码光晕使用 `currentColor` 跟随实际文字颜色，不再按 `.mtk1`、`.mtk2` 等动态编号指定颜色。脚本读取当前 token 样式，将 One Dark Pro 的文字颜色归入角色组：
 
 | 配色语义组 | 基础强度 |
@@ -117,7 +121,7 @@ python scripts/build_theme.py
 python ../scripts/package_vsix.py .
 ```
 
-第一个步骤需要本机已安装 Dark 2026 和 One Dark Pro，并自动合并 `theme-overrides.json` 与 `languages/*.json` 的界面颜色、TextMate 和语义定制；语言规则按文件名排序加载。第二个步骤使用仓库共用的 Python VSIX 打包器，将 `package.json.files` 白名单中的主题、语法补充、脚本与样式连同文档、许可证及共用更新模块打包，生成 `dist/dark2026-one-dark-pro-1.2.16.vsix`。它不需要重新读取源主题，也不需要 pip 包、npm 依赖或 vsce。
+第一个步骤需要本机已安装 Dark 2026 和 One Dark Pro，并自动合并 `theme-overrides.json` 与 `languages/*.json` 的界面颜色、TextMate 和语义定制；语言规则按文件名排序加载。第二个步骤使用仓库共用的 Python VSIX 打包器，将 `package.json.files` 白名单中的主题、语法补充、脚本、样式和图标连同文档、许可证及共用更新模块打包，生成 `dist/dark2026-one-dark-pro-1.2.18.vsix`。它不需要重新读取源主题，也不需要 pip 包、npm 依赖或 vsce。
 
 自动检测使用 PATH 中的 `code` 和用户目录的 `.vscode/extensions`。自定义位置可在本插件目录指定：
 

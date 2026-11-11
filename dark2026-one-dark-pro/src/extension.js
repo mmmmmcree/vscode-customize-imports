@@ -14,8 +14,10 @@ function isManagedImport(value, current) {
 }
 
 async function source(context) {
-  const read = name => fs.readFile(vscode.Uri.joinPath(context.extensionUri, 'media', name).fsPath, 'utf8');
-  const [css, script] = await Promise.all([read('synthwave84.css'), read('synthwave84.js')]);
+  const read = (name, encoding = 'utf8') => fs.readFile(vscode.Uri.joinPath(context.extensionUri, 'media', name).fsPath, encoding);
+  const [styles, script, icon] = await Promise.all([read('synthwave84.css'), read('synthwave84.js'), read('vscode-neon.png', null)]);
+  const css = '.dark2026-synthwave { --synthwave-app-icon: url("data:image/png;base64,'
+    + icon.toString('base64') + '"); }\n' + styles;
   const config = vscode.workspace.getConfiguration('dark2026OneDarkPro');
   const options = { css, intensity: config.get('glowIntensity', 1), frequencyAware: config.get('frequencyAware', true) };
   return 'window.dark2026Synthwave?.dispose();\nwindow.dark2026SynthwaveOptions = '

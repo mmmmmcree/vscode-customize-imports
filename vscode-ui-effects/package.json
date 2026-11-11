@@ -2,7 +2,7 @@
   "name": "customize-imports-effects",
   "displayName": "Customize Imports Effects",
   "description": "Cursor trails, translucent widgets and a custom editor watermark.",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "publisher": "local-tools",
   "license": "MIT",
   "engines": { "vscode": "^1.90.0" },

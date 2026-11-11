@@ -2,7 +2,7 @@
   "name": "dark2026-one-dark-pro",
   "displayName": "Dark 2026 + One Dark Pro",
   "description": "Dark 2026 UI with One Dark Pro syntax and semantic highlighting.",
-  "version": "1.2.16",
+  "version": "1.2.18",
   "publisher": "local",
   "license": "MIT",
   "engines": {
@@ -20,6 +20,7 @@
     "src/**/*.js",
     "media/*.css",
     "media/*.js",
+    "media/*.png",
     "Dark2026-OneDarkPro.md"
   ],
   "repositorySharedFiles": { "src/custom-css.js": "custom-css.js" },

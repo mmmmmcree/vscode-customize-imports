@@ -75,7 +75,9 @@
       }
     }
     for (const sheet of document.styleSheets) {
-      if (sheet.ownerNode === style) continue;
+      // Monaco emits token/decorations colors in inline sheets. The large
+      // workbench stylesheet has no token palette and need not be rescanned.
+      if (sheet.ownerNode === style || sheet.href) continue;
       try { visit(sheet.cssRules); } catch { /* Ignore inaccessible external sheets. */ }
     }
     return result;

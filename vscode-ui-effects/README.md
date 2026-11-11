@@ -36,7 +36,9 @@ Vim Visual 模式额外绘制的当前字符矩形，也使用相同渐变并搭
 
 若代码光晕正常但光标变色和拖尾同时消失，先运行 **Customize Imports: 启用或更新界面特效**。主题的启用命令不会注册本插件；正常启用后，`vscode_custom_css.imports` 应包含扩展存储目录中的 `effects.js`。光标变色需要 `customizeImports.interfaceStyles`，拖尾需要 `customizeImports.cursorTrail`，两项默认均为 `true`。
 
-本目录执行 `npm run package`，或从仓库根目录执行 `python scripts/package_vsix.py vscode-ui-effects`，生成 `dist/customize-imports-effects-0.1.8.vsix`。
+本目录执行 `npm run package`，或从仓库根目录执行 `python scripts/package_vsix.py vscode-ui-effects`，生成 `dist/customize-imports-effects-0.1.9.vsix`。
+
+`0.1.9` 更新共用注入器，特效脚本在原生编辑器界面绘制后启动。更新后运行一次启用或更新命令，再按提示重载。图片预览出现 Service Worker 注册错误时，缓存恢复步骤见 [scripts/README.md](../scripts/README.md)。
 
 `0.1.8` 将工作台横向、纵向滚动滑块统一为霓虹渐变，区分默认、悬停和拖动状态。
 

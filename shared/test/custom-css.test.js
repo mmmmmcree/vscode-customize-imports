@@ -136,17 +136,63 @@ test('unsafe existing markup is rejected without replacing the workbench', async
 
 test('replacement tokens and quoted closing tags survive inline injection without damaging the bootstrap', async t => {
   const state = await fixture(t);
-  const literals = ['$&', '$`', "$'", '</script>'];
+  const literals = ['$&', '$`', "$'", '<script>', '</script>'];
   const source = 'globalThis.literals = ' + JSON.stringify(literals) + ';';
   const file = path.join(state.root, 'literal.js');
   await fs.writeFile(file, source);
   state.values.imports = [pathToFileURL(file).toString()];
   await updateCustomCSS(state.vscode);
   const html = await fs.readFile(state.workbench, 'utf8');
-  const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)][0][1];
+  const script = [...html.matchAll(/<script type="text\/plain" data-customize-imports-pending>([\s\S]*?)<\/script>/g)][0][1];
   const sandbox = {};
   vm.runInNewContext(script, sandbox);
   assert.equal(JSON.stringify(sandbox.literals), JSON.stringify(literals));
+  assert.equal(clearPatches(html), native);
+});
+
+test('effect scripts stay inert until the native shell is ready and activate once in import order', async t => {
+  const state = await fixture(t);
+  for (const name of ['first', 'second']) {
+    const file = path.join(state.root, name + '.js');
+    await fs.writeFile(file, `globalThis.order.push('${name}');`);
+    state.values.imports.push(pathToFileURL(file).toString());
+  }
+  await updateCustomCSS(state.vscode);
+  const html = await fs.readFile(state.workbench, 'utf8');
+  const pending = [...html.matchAll(/<script type="text\/plain" data-customize-imports-pending>([\s\S]*?)<\/script>/g)];
+  assert.equal(pending.length, 2);
+  const bootstrap = html.match(/<script data-customize-imports-bootstrap>([\s\S]*?)<\/script>/)[1];
+  const frames = [], timers = new Map(), order = [];
+  let load, mutation, shellReady = false, disconnected = false, timer = 0;
+  const sandbox = { order,
+    window: { addEventListener: (name, handler) => { assert.equal(name, 'load'); load = handler; } },
+    document: {
+      readyState: 'loading', body: {},
+      querySelector: () => shellReady,
+      querySelectorAll: () => pending.map(match => ({ textContent: match[1], replaceWith: script => vm.runInNewContext(script.textContent, sandbox) })),
+      createElement: name => { assert.equal(name, 'script'); return {}; },
+    },
+    MutationObserver: class {
+      constructor(callback) { mutation = callback; }
+      observe() {}
+      disconnect() { disconnected = true; }
+    },
+    requestAnimationFrame: callback => frames.push(callback),
+    setTimeout: (callback, timeout) => { const id = ++timer; timers.set(id, { callback, timeout }); return id; },
+    clearTimeout: id => timers.delete(id),
+  };
+  vm.runInNewContext(bootstrap, sandbox);
+  assert.deepEqual(order, [], 'Parsing the head must not run custom scripts');
+  order.push('native'); load();
+  assert.deepEqual(order, ['native'], 'A load event without a workbench must not start effects');
+  shellReady = true; mutation();
+  assert.ok(disconnected);
+  assert.deepEqual(order, ['native']);
+  frames.shift()(); frames.shift()();
+  const scheduled = [...timers.values()];
+  scheduled.find(value => value.timeout === 0).callback();
+  scheduled.find(value => value.timeout === 500).callback();
+  assert.deepEqual(order, ['native', 'first', 'second'], 'Fallback and frame callbacks must not duplicate activation');
   assert.equal(clearPatches(html), native);
 });
 
