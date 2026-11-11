@@ -31,7 +31,35 @@
   let lastCounts = {};
   let strengths = {};
   let workbenchSeen = Boolean(document.querySelector('.monaco-workbench'));
+  let statusbar = null;
   const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
+
+  function sameColor(first, second) {
+    if (!first || !second) return false;
+    colorContext.fillStyle = '#000000';
+    colorContext.fillStyle = first;
+    const normalized = colorContext.fillStyle;
+    colorContext.fillStyle = '#000000';
+    colorContext.fillStyle = second;
+    return normalized === colorContext.fillStyle;
+  }
+
+  function updateStatusbar(workbench, colors) {
+    const current = workbench.querySelector('.part.statusbar');
+    if (current !== statusbar) {
+      statusbarObserver.disconnect();
+      statusbar?.classList.remove('dark2026-synthwave-debugging');
+      statusbar = current;
+      if (statusbar) statusbarObserver.observe(statusbar, { attributes: true, attributeFilter: ['style'] });
+    }
+    if (!statusbar) return;
+    // VS Code writes the resolved target color inline; comparing that value avoids
+    // sampling its in-progress background transition or relying on a private class.
+    const debug = colors.getPropertyValue('--vscode-statusBar-debuggingBackground').trim();
+    const normal = colors.getPropertyValue('--vscode-statusBar-background').trim();
+    const debugging = active && !sameColor(debug, normal) && sameColor(statusbar.style.backgroundColor, debug);
+    statusbar.classList.toggle('dark2026-synthwave-debugging', debugging);
+  }
 
   function scanColors() {
     const result = new Map();
@@ -73,9 +101,11 @@
     if (disposed) return;
     const workbench = document.querySelector('.monaco-workbench');
     if (!workbench) return;
-    const marker = getComputedStyle(workbench).getPropertyValue('--vscode-dark2026OneDarkPro-glow').trim().toLowerCase();
+    const colors = getComputedStyle(workbench);
+    const marker = colors.getPropertyValue('--vscode-dark2026OneDarkPro-glow').trim().toLowerCase();
     active = marker === '#fc28a8' || marker === '#fc28a8ff';
     workbench.classList.toggle('dark2026-synthwave', active);
+    updateStatusbar(workbench, colors);
     if (!active) return;
     if (rebuild) { classRoles = scanColors(); rebuild = false; }
     lastCounts = frequencyAware ? countRoles() : {};
@@ -101,6 +131,7 @@
     if (timer !== null) clearTimeout(timer);
     timer = setTimeout(update, delay);
   }
+  const statusbarObserver = new MutationObserver(() => schedule(0));
   const themeObserver = new MutationObserver(records => {
     if (records.some(record => record.target !== style && !style.contains(record.target))) schedule(0, true);
   });
@@ -121,12 +152,14 @@
     childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'],
   });
   const api = {
-    getStats: () => ({ active, counts: { ...lastCounts }, strengths: { ...strengths }, classes: classRoles.size }),
+    getStats: () => ({ active, debugging: Boolean(statusbar?.classList.contains('dark2026-synthwave-debugging')),
+      counts: { ...lastCounts }, strengths: { ...strengths }, classes: classRoles.size }),
     dispose() {
       disposed = true;
-      themeObserver.disconnect(); editorObserver.disconnect();
+      themeObserver.disconnect(); editorObserver.disconnect(); statusbarObserver.disconnect();
       if (timer !== null) clearTimeout(timer);
       document.querySelector('.monaco-workbench')?.classList.remove('dark2026-synthwave');
+      statusbar?.classList.remove('dark2026-synthwave-debugging');
       style.remove();
       if (window.dark2026Synthwave === api) { delete window.dark2026Synthwave; delete window.dark2026SynthwaveOptions; }
     },

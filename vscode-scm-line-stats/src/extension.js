@@ -311,8 +311,8 @@ async function activate(context) {
     view.message = text.gitUnavailable;
   }
   // Expose the model to extension-host smoke tests and other local integrations.
-  // Installation and upgrades must register/apply the renderer too. Previously
-  // only the manual command did this, so installing a VSIX left plain tooltips.
+  // Startup only checks readiness. Applying a new renderer is an explicit command
+  // so it cannot race another extension's Custom CSS update during startup.
   await setupRenderer();
   return { refresh: () => provider.refresh(), getSnapshot: () => provider.results, getRendererState: () => rendererState };
 }

@@ -24,6 +24,8 @@
 
 若代码光晕正常但光标变色和拖尾同时消失，先运行 **Customize Imports: 启用或更新界面特效**。主题的启用命令不会注册本插件；正常启用后，`vscode_custom_css.imports` 应包含扩展存储目录中的 `effects.js`。光标变色需要 `customizeImports.interfaceStyles`，拖尾需要 `customizeImports.cursorTrail`，两项默认均为 `true`。
 
-本目录执行 `npm run package`，或从仓库根目录执行 `python scripts/package_vsix.py vscode-ui-effects`，生成 `dist/customize-imports-effects-0.1.1.vsix`。
+本目录执行 `npm run package`，或从仓库根目录执行 `python scripts/package_vsix.py vscode-ui-effects`，生成 `dist/customize-imports-effects-0.1.2.vsix`。
+
+`0.1.2` 与其他特效插件共用串行、原子更新器，避免同时启用时写坏工作台入口；效果配色及已有导入保持原样。
 
 生成脚本使用 `file:` 地址供 Loader 读取。旧版本若出现 `Cannot load 'vscode-userdata:…/effects.js'`，更新后先重新加载 VS Code，再运行启用或更新界面特效命令，自动替换旧导入后按提示重载。

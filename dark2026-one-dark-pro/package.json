@@ -2,7 +2,7 @@
   "name": "dark2026-one-dark-pro",
   "displayName": "Dark 2026 + One Dark Pro",
   "description": "Dark 2026 UI with One Dark Pro syntax and semantic highlighting.",
-  "version": "1.2.8",
+  "version": "1.2.14",
   "publisher": "local",
   "license": "MIT",
   "engines": {
@@ -22,6 +22,7 @@
     "media/*.js",
     "Dark2026-OneDarkPro.md"
   ],
+  "repositorySharedFiles": { "src/custom-css.js": "custom-css.js" },
   "scripts": {
     "test": "node --test test/*.test.js",
     "build": "python scripts/build_theme.py",
@@ -62,6 +63,21 @@
         "id": "dark2026OneDarkPro.glow",
         "description": "Marker for this theme's bundled Synthwave effects.",
         "defaults": { "dark": "#00000000", "light": "#00000000", "highContrast": "#00000000", "highContrastLight": "#00000000" }
+      },
+      {
+        "id": "dark2026OneDarkPro.neonStart",
+        "description": "Synthwave UI gradient start color.",
+        "defaults": { "dark": "#9566FF", "light": "#9566FF", "highContrast": "#9566FF", "highContrastLight": "#9566FF" }
+      },
+      {
+        "id": "dark2026OneDarkPro.neonMiddle",
+        "description": "Synthwave UI gradient middle color.",
+        "defaults": { "dark": "#478FFF", "light": "#478FFF", "highContrast": "#478FFF", "highContrastLight": "#478FFF" }
+      },
+      {
+        "id": "dark2026OneDarkPro.neonEnd",
+        "description": "Synthwave UI gradient end color.",
+        "defaults": { "dark": "#03EDF9", "light": "#03EDF9", "highContrast": "#03EDF9", "highContrastLight": "#03EDF9" }
       }
     ],
     "themes": [

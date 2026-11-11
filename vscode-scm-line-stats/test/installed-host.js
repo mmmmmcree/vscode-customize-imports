@@ -15,6 +15,9 @@ async function run() {
   while (api.getSnapshot().length < 2 && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 100));
   await api.refresh();
   await vscode.commands.executeCommand('workbench.view.scm');
+  if (api.getRendererState().state === 'manual-update-required') {
+    await vscode.commands.executeCommand('scmLineStats.enableNativeHover');
+  }
   const renderer = api.getRendererState();
   await fs.writeFile(path.join(results, 'native-host-ready.json'), JSON.stringify({
     locale: vscode.env.language, renderer,

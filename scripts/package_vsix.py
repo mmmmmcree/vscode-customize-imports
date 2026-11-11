@@ -118,6 +118,14 @@ def package_extension(extension_dir):
     root = extension_dir.resolve()
     manifest = read_json(root / "package.json")
     files = extension_files(root, manifest)
+    shared = {}
+    shared_root = Path(__file__).resolve().parents[1] / "shared"
+    for destination, source in manifest.get("repositorySharedFiles", {}).items():
+        target = root / destination
+        resource = (shared_root / source).resolve()
+        if target not in files or not resource.is_relative_to(shared_root) or not resource.is_file():
+            raise ValueError(f"Invalid shared package resource: {destination} -> {source}")
+        shared[target] = resource
     metadata = vsix_manifest(root, manifest, files)
     types = content_types(root, files)
     filename = f"{manifest['name']}-{manifest['version']}.vsix"
@@ -129,7 +137,7 @@ def package_extension(extension_dir):
         archive.writestr("extension.vsixmanifest", metadata)
         archive.writestr("[Content_Types].xml", types)
         for file in files:
-            archive.write(file, "extension/" + file.relative_to(root).as_posix())
+            archive.write(shared.get(file, file), "extension/" + file.relative_to(root).as_posix())
     with zipfile.ZipFile(output) as archive:
         if archive.testzip() is not None:
             raise ValueError("VSIX archive integrity check failed.")

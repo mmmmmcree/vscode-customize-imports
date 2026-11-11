@@ -32,6 +32,8 @@ python scripts/install.py --extensions-dir .agent/validation/extensions --user-d
 
 所有安装包统一命名为 `插件名-版本.vsix`，存放在对应插件的 `dist/`。各 `dist/.gitignore` 忽略产物并保留 `.gitignore` 自身；`scripts/.gitignore` 忽略 Python 缓存。打包器使用 `package.json` 的 `files` 白名单选择源码，并自动加入清单、README、许可证和 `package.nls*.json`；不会把开发脚本、测试、缓存或历史安装包打入包内。
 
+四个插件共用 `shared/custom-css.js` 更新工作台效果。各 `src/custom-css.js` 是开发入口，打包器按 `repositorySharedFiles` 将共用实现直接写入 VSIX 中的同名位置，因此每个安装包仍可独立运行。共享源文件必须位于仓库的 `shared/`，目标必须已在插件的 `files` 白名单中。
+
 主题的配色生成属于该插件自己的构建步骤。只有需要同步本机更新后的 Dark 2026 或 One Dark Pro 时，才先执行：
 
 ```powershell
@@ -41,7 +43,7 @@ python scripts/install.py --plugin dark2026-one-dark-pro
 
 直接打包和安装使用仓库中已有的主题文件，不要求本机安装 One Dark Pro。配色生成脚本才需要本机的源主题，参数见主题目录中的说明。
 
-安装完成后重新加载 VS Code，选择 `Dark 2026 + One Dark Pro`。首次使用以下效果时，在命令面板执行相应启用命令，它们会自动登记 Custom CSS and JS Loader 的导入并调用重载：
+安装完成后重新加载 VS Code，选择 `Dark 2026 + One Dark Pro`。首次使用以下效果时，在命令面板执行相应启用命令，它们会登记 Custom CSS and JS Loader 的导入，通过共用更新器应用效果并提示重载：
 
 | 插件 | 启用命令 |
 | --- | --- |
@@ -51,6 +53,17 @@ python scripts/install.py --plugin dark2026-one-dark-pro
 | SCM 统计 | `更改统计: 启用原生悬停`（英文显示语言为 `Line Stats: Enable Native Hover`） |
 
 Loader 未安装时，启用命令会打开对应扩展的搜索结果。仅把文件放入 `media/` 不会自动加载；启用命令负责注册，不需要手写扩展版本路径。修改设置或升级特效插件后，再执行一次启用或更新命令。停用这些效果请先执行各插件的停用命令，再按 Loader 提示重载；SCM 统计的设置和行为见其 README。
+
+更新器对同一 VS Code 安装使用跨进程文件锁，先在临时文件中生成完整页面、检查原生启动脚本及必需资源，再原子替换工作台 HTML；生成失败时保留当前可用页面。更新前后的完整页面会保存为最近可用备份，同时保留 Loader 兼容的会话备份，Loader 自身的停用命令仍可恢复基础页面。SCM 启动时只检查卡片脚本状态，安装或更新卡片需要手动运行“启用原生悬停”，避免启动更新与其他插件的启用命令重叠。
+
+旧版若在启用效果后出现整个窗口空白，请先从 VS Code 安装目录中完整的 `workbench.*.bak-custom-css` 恢复 `workbench.html`；空文件不能作为恢复来源。更新本仓库的全部四个插件后再重新加载窗口。此次修复保留现有 neon、行号、标签页及代码配色。
+
+共用更新器与打包回归检查：
+
+```powershell
+node --test shared/test/*.test.js
+python -m unittest discover -s scripts -p "test_*.py"
+```
 
 若旧版本提示 `Cannot load 'vscode-userdata:…'. Skipping.`，重新运行安装脚本后先重新加载 VS Code，再运行受影响插件的启用或更新命令。新版本将扩展存储路径转换为 Loader 可读取的 `file:` 地址，并替换该插件的旧导入；无需手动改写用户目录路径。
 

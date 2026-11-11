@@ -29,7 +29,7 @@ async function main() {
     await page.waitForSelector('.resource-group', { timeout: 20000 });
     const actualLocale = await page.evaluate(() => window.scmLineStatsDisplayLanguage || window._VSCODE_NLS_LANGUAGE || document.documentElement.lang || 'en');
     assert.equal(actualLocale, locale, 'uses VS Code display language, independent of OS locale');
-    await page.waitForFunction(() => window.scmLineStatsNativeHover?.version === '0.2.4');
+    await page.waitForFunction(() => window.scmLineStatsNativeHover?.version === '0.2.6');
     assert.equal(await page.locator('#scm-line-stats-native-style').count(), 1);
     checks.push('installed renderer initializes from the head script without runtime injection');
 

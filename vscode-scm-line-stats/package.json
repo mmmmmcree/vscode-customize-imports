@@ -2,7 +2,7 @@
   "name": "scm-line-stats",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.2.4",
+  "version": "0.2.6",
   "publisher": "local-tools",
   "license": "MIT",
   "engines": {
@@ -33,6 +33,7 @@
     "src/**/*.js",
     "media/**/*.js"
   ],
+  "repositorySharedFiles": { "src/custom-css.js": "custom-css.js" },
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": false

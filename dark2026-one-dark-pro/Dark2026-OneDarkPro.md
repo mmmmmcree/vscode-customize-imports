@@ -2,7 +2,43 @@ Dark 2026 的界面、One Dark Pro 的代码配色和 Synthwave 光晕一起打�
 
 插件展开 Dark 2026 的颜色继承，完整使用 One Dark Pro 的 TextMate 与语义规则、默认代码文字和括号颜色。主题 JSON 不继承 Dark 2026 的语法规则，避免更具体的规则混入原主题配色。源主题配色的初始快照来自 VS Code 1.123.0 和 One Dark Pro 3.20.6。
 
-`theme-overrides.json` 保存跨语言定制，`languages/*.json` 保存各语言的配色扩展，构建时依次合并到上游配色之后。语言特有的语法适合独立维护规则文件，随同一主题发布。当前 `languages/cpp.json` 为 C++ 添加以下分组：
+`theme-overrides.json` 保存跨语言定制，`languages/*.json` 保存各语言的配色扩展，构建时依次合并到上游配色之后。语言特有的语法适合独立维护规则文件，随同一主题发布。
+
+当前行号、工作台原生主按钮和调试底栏使用 Synthwave 渐变效果。单个原生主题色只能表达单色，渐变、光晕和动画由随扩展打包的 CSS 实现，需要启用 Custom CSS and JS Loader 并运行 **Dark 2026: 启用或更新 Synthwave 光晕**。渐变的三个色点通过主题贡献颜色暴露，可自由覆盖：
+
+| 颜色项 | 配色 |
+| --- | --- |
+| `dark2026OneDarkPro.neonStart` | 紫 `#9566FF` |
+| `dark2026OneDarkPro.neonMiddle` | 蓝 `#478FFF` |
+| `dark2026OneDarkPro.neonEnd` | 青 `#03EDF9` |
+
+当前行号将紫 → 蓝 → 青的渐变裁剪到数字字形内，并附带低强度蓝青光晕。渐变从上到下覆盖行高，避免单个右对齐数字只显示横向渐变末端的一种颜色。高亮由 Monaco 原生的当前行号类驱动，不增加脚本、轮询或持续动画。选择器限定在当前主题的活动行号，兼容 UI Effects 同时加载及两种加载顺序；切换主题或停用 Synthwave 后恢复原有行号样式。
+
+SCM 统计卡片 `.scm-lines-hover` 与原生图表卡片 `.history-item-hover` 共用 13px/19px 的字体与行高、12px 留白、8px 圆角、暗色渐变底、紫蓝青渐变边框与低强度光晕。卡片最小宽度为 340px，受视口宽度约束；长路径和文本可换行。图表原有的提交链接、分支标签、焦点轮廓及悬停指针继续使用原生结构，编辑器等其他悬停框不套用这组卡片样式。
+
+统计卡片的数字缩小为与图表正文一致的 13px，并直接使用 `scmGraph.historyItemHoverAdditionsForeground` 和 `scmGraph.historyItemHoverDeletionsForeground`，因此两处的新增、删除色保持一致；比例条继续按实际行数计算。此主题将它们设为薄荷绿 `#72E3B2` 与珊瑚红 `#FF7B86`。图表分支线使用紫、蓝、青、淡紫、薄荷绿，本地、远端及基线引用分别使用紫、青、蓝；这些 `scmGraph.*` 值维护在 `theme-overrides.json`，可通过 `workbench.colorCustomizations` 覆盖。更新后需要分别重新启用 SCM 卡片与 Synthwave 光晕。
+
+按钮的深色渐变底由三个色点混合暗色生成，保持浅色文字清晰可读。原生主按钮统一采用此效果，包括源码管理的提交与同步、右下角通知及通知中心、设置、欢迎页和工作台内的对话框按钮。次要按钮保留原有配色，以区分操作层级；图标工具栏保留原有样式。扩展 Webview、嵌入网页及系统文件对话框具有独立的页面或系统样式，需要由对应扩展或系统单独支持。
+
+分体按钮的主操作、分隔线及下拉操作共用连续渐变。悬停或键盘聚焦时，渐变在 300 毫秒内移动并增强光晕；禁用状态变暗并停止增强光晕，保留原生点击、焦点轮廓和无障碍语义。
+
+调试底栏使用相同的深色渐变，配有 2px 紫蓝青渐变顶边，底色以 6 秒周期缓慢往返。脚本通过监听原生状态栏的行内背景色变化启停效果，不轮询，也不依赖私有调试状态类；调试结束时恢复普通状态栏，`debug.enableStatusBarColor` 关闭时不启用渐变。系统启用减少动态效果时，两处均保留静态渐变并停止动画。
+
+未启用 Loader 时，主按钮沿用基础主题的蓝色，调试状态栏使用深青底 `#17384D`、浅色文字 `#EAFBFF` 和蓝色顶边。基础色与渐变色点保存在 `theme-overrides.json` 和随包发布的主题 JSON 中，重新生成主题时会保留。切换到其他主题或停用 Synthwave 时会移除渐变效果。
+
+需要个人微调时，在 `settings.json` 的现有 `workbench.colorCustomizations` 中合并以下按主题限定的设置。用户设置优先于主题，保存后渐变色即时更新，无需修改扩展文件或重新打包。可定制的颜色项见 [VS Code 主题颜色参考](https://code.visualstudio.com/api/references/theme-color)。
+
+```json
+"workbench.colorCustomizations": {
+  "[Dark 2026 + One Dark Pro]": {
+    "dark2026OneDarkPro.neonStart": "#9566FF",
+    "dark2026OneDarkPro.neonMiddle": "#478FFF",
+    "dark2026OneDarkPro.neonEnd": "#03EDF9"
+  }
+}
+```
+
+当前 `languages/cpp.json` 为 C++ 添加以下分组：
 
 | 语法类别 | 示例 | 颜色 |
 | --- | --- | --- |
@@ -36,7 +72,9 @@ python scripts/install.py --plugin dark2026-one-dark-pro
 
 安装后按 `Ctrl+K Ctrl+T`，选择 `Dark 2026 + One Dark Pro`。再运行命令 **Dark 2026: 启用或更新 Synthwave 光晕**，按 Custom CSS and JS Loader 提示重新加载。
 
-`media/synthwave84.css` 随主题扩展一起安装。它不会仅因存在于 `media/` 中就被 Loader 发现；启用命令读取它，在当前配置文件的扩展存储目录生成稳定的加载入口，以实际文件的 `file:` 地址登记到 `vscode_custom_css.imports`，并调用 Loader 重载。VS Code 内部的 `vscode-userdata:` 存储地址不能直接交给 Loader；旧版本登记的此类导入会在下次启用时自动替换。更新主题后先重新加载 VS Code，再次执行启用或更新命令；无需修改扩展版本路径。其他插件和自定义导入会被保留，本仓库旧的根目录 `synthwave84.css` 导入会被替换。
+`media/synthwave84.css` 随主题扩展一起安装。它不会仅因存在于 `media/` 中就被 Loader 发现；启用命令读取它，在当前配置文件的扩展存储目录生成稳定的加载入口，以实际文件的 `file:` 地址登记到 `vscode_custom_css.imports`，由共用安全更新器应用并提示重新加载。VS Code 内部的 `vscode-userdata:` 存储地址不能直接交给 Loader；旧版本登记的此类导入会在下次启用时自动替换。更新主题后先重新加载 VS Code，再次执行启用或更新命令；无需修改扩展版本路径。其他插件和自定义导入会被保留，本仓库旧的根目录 `synthwave84.css` 导入会被替换。
+
+更新器在跨进程互斥内生成页面，校验原生启动脚本及必需效果后原子替换，完整页面保留为最近可用备份。SCM 启动检查不再自动改写页面，避免同时启用光晕时两次更新交叠导致入口被写空。Loader 的会话备份格式与停用操作继续兼容。
 
 代码光晕使用 `currentColor` 跟随实际文字颜色，不再按 `.mtk1`、`.mtk2` 等动态编号指定颜色。脚本读取当前 token 样式，将 One Dark Pro 的文字颜色归入角色组：
 
@@ -62,7 +100,7 @@ python scripts/install.py --plugin dark2026-one-dark-pro
 
 配色、条高和 `ease` 缓动曲线来自最早提交 `2e3e2b5`。本版将原先的 1 秒过渡缩短为 300 毫秒，同时用同一曲线驱动透明度与裁剪。顶部横条已移除，并保留拖放提示。`theme-overrides.json` 将选中、活动及未聚焦活动标签的顶部边线设为透明，基础主题无需 Loader 即可去除蓝线；启用 Synthwave 时也隐藏原生顶部容器。
 
-光标渐变变色、光标拖尾和界面样式由 UI Effects 插件提供，需另外运行 **Customize Imports: 启用或更新界面特效**。若 `vscode_custom_css.imports` 中只有主题的 `synthwave84.js`，这些光标效果不会加载；该命令会登记 `effects.js`，保留主题、SCM 和其他导入，再调用 Loader 重载。
+光标渐变变色、光标拖尾和界面样式由 UI Effects 插件提供，需另外运行 **Customize Imports: 启用或更新界面特效**。若 `vscode_custom_css.imports` 中只有主题的 `synthwave84.js`，这些光标效果不会加载；该命令会登记 `effects.js`，保留主题、SCM 和其他导入，再由共用安全更新器应用并提示重载。
 
 主题贡献一个专用颜色标记，加载脚本监听主题变化，仅在该标记生效时启用光晕和标签页渐变，因此切换到其他主题会自动关闭，切回时恢复。
 
@@ -75,7 +113,7 @@ python scripts/build_theme.py
 python ../scripts/package_vsix.py .
 ```
 
-第一个步骤需要本机已安装 Dark 2026 和 One Dark Pro，并自动合并 `theme-overrides.json` 与 `languages/*.json` 的界面颜色、TextMate 和语义定制；语言规则按文件名排序加载。第二个步骤使用仓库共用的 Python VSIX 打包器，将 `package.json.files` 白名单中的主题、语法补充、脚本与样式连同文档、许可证打包，生成 `dist/dark2026-one-dark-pro-1.2.6.vsix`。它不需要重新读取源主题，也不需要 pip 包、npm 依赖或 vsce。
+第一个步骤需要本机已安装 Dark 2026 和 One Dark Pro，并自动合并 `theme-overrides.json` 与 `languages/*.json` 的界面颜色、TextMate 和语义定制；语言规则按文件名排序加载。第二个步骤使用仓库共用的 Python VSIX 打包器，将 `package.json.files` 白名单中的主题、语法补充、脚本与样式连同文档、许可证及共用更新模块打包，生成 `dist/dark2026-one-dark-pro-1.2.14.vsix`。它不需要重新读取源主题，也不需要 pip 包、npm 依赖或 vsce。
 
 自动检测使用 PATH 中的 `code` 和用户目录的 `.vscode/extensions`。自定义位置可在本插件目录指定：
 

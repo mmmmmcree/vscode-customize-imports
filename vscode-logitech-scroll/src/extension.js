@@ -2,6 +2,7 @@
 
 const vscode = require('vscode');
 const fs = require('node:fs/promises');
+const { updateCustomCSS, atomicWrite } = require('./custom-css');
 
 function isManagedImport(value, current) {
   let path;
@@ -33,15 +34,17 @@ function activate(context) {
     const entry = vscode.Uri.joinPath(context.globalStorageUri, 'scroll.js');
     // User-data storage may use vscode-userdata:, which the Loader cannot read.
     const entryUrl = vscode.Uri.file(entry.fsPath).toString();
-    if (enabled) {
-      await fs.mkdir(context.globalStorageUri.fsPath, { recursive: true });
-      await fs.writeFile(entry.fsPath, await source(context), 'utf8');
-    }
-    const config = vscode.workspace.getConfiguration('vscode_custom_css');
-    const imports = config.get('imports', []).filter(value => !isManagedImport(value, entryUrl));
-    if (enabled) imports.push(entryUrl);
-    await config.update('imports', imports, vscode.ConfigurationTarget.Global);
-    await vscode.commands.executeCommand('extension.updateCustomCSS');
+    await updateCustomCSS(vscode, async () => {
+      if (enabled) {
+        await fs.mkdir(context.globalStorageUri.fsPath, { recursive: true });
+        await atomicWrite(entry.fsPath, await source(context));
+      }
+      const config = vscode.workspace.getConfiguration('vscode_custom_css');
+      const imports = config.get('imports', []).filter(value => !isManagedImport(value, entryUrl));
+      if (enabled) imports.push(entryUrl);
+      await config.update('imports', imports, vscode.ConfigurationTarget.Global);
+      if (enabled) return { requiredMarker: 'window.logitechHorizontalScrollPatch.setConfig(' };
+    });
   }
   const run = enabled => async () => {
     try { await apply(enabled); }

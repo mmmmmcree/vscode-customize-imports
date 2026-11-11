@@ -27,6 +27,7 @@
     workbenchMissing: 'Could not locate the VS Code workbench HTML.',
     rendererFailed: 'The colored hover renderer was not applied. Run Enable Native Hover and check the output log.',
     rendererReload: 'Colored hover cards are installed. Reload the VS Code window to activate them.',
+    rendererUpdateRequired: 'Run Enable Native Hover to install or update colored hover cards. Startup does not modify VS Code files.',
     nativeIntegration: 'Native integration', restoreGroups: 'Restore native Git groups',
   };
   const zhCN = {
@@ -48,6 +49,7 @@
     workbenchMissing: '找不到 VS Code 的工作台页面。',
     rendererFailed: '彩色悬停界面未能启用，请运行“启用原生悬停”并查看日志。',
     rendererReload: '彩色悬停卡片已安装，重新加载 VS Code 窗口后生效。',
+    rendererUpdateRequired: '请运行“启用原生悬停”安装或更新彩色卡片；启动检查不会改写 VS Code 文件。',
     nativeIntegration: '原生集成', restoreGroups: '恢复原生 Git 分组',
   };
   const zhTW = {
@@ -67,6 +69,7 @@
     workbenchMissing: '找不到 VS Code 工作台頁面。',
     rendererFailed: '彩色暫留介面未能啟用，請執行「啟用原生暫留」並查看記錄。',
     rendererReload: '彩色暫留卡片已安裝，重新載入 VS Code 視窗後生效。',
+    rendererUpdateRequired: '請執行「啟用原生暫留」安裝或更新彩色卡片；啟動檢查不會改寫 VS Code 檔案。',
     nativeIntegration: '原生整合', restoreGroups: '還原原生 Git 群組',
   };
   function createStrings(locale = 'en') {

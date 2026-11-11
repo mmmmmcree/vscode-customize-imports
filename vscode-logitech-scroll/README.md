@@ -10,6 +10,8 @@
 
 参数在设置中的 `logitechScroll.*` 下调整，修改后再次运行启用或更新命令。停用时执行 **Logitech: 停用横滚补丁** 并重载；卸载前先停用。
 
-本目录运行 `npm run package`，或从仓库根目录运行 `python scripts/package_vsix.py vscode-logitech-scroll`，生成 `dist/logitech-horizontal-scroll-0.1.1.vsix`。参数和临时调试接口见 [Logitech_horizontal_scroll_patch.md](Logitech_horizontal_scroll_patch.md)。
+本目录运行 `npm run package`，或从仓库根目录运行 `python scripts/package_vsix.py vscode-logitech-scroll`，生成 `dist/logitech-horizontal-scroll-0.1.2.vsix`。参数和临时调试接口见 [Logitech_horizontal_scroll_patch.md](Logitech_horizontal_scroll_patch.md)。
+
+`0.1.2` 与其他特效插件共用串行、原子更新器，避免同时启用时写坏工作台入口；横滚参数及操作保持原样。
 
 生成脚本使用 `file:` 地址供 Loader 读取。旧版本若出现 `Cannot load 'vscode-userdata:…/scroll.js'`，更新后先重新加载 VS Code，再运行启用或更新横滚补丁命令，自动替换旧导入后按提示重载。

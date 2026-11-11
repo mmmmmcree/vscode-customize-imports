@@ -8,7 +8,7 @@ const { pathToFileURL } = require('node:url');
 const { managedImport, ensureRenderer, bundleRenderer } = require('../src/renderer');
 const { createStrings } = require('../media/strings');
 
-test('installed renderer is registered as one stable bundle and applied idempotently', async t => {
+test('startup is read-only and an explicit renderer update is atomic and idempotent', async t => {
   const parent = path.resolve(__dirname, '../test-results');
   await fs.mkdir(parent, { recursive: true });
   const root = await fs.mkdtemp(path.join(parent, 'renderer-'));
@@ -18,8 +18,8 @@ test('installed renderer is registered as one stable bundle and applied idempote
   });
   const workbench = path.join(root, 'app/out/vs/code/electron-browser/workbench/workbench.html');
   await fs.mkdir(path.dirname(workbench), { recursive: true });
-  await fs.writeFile(workbench, '<html><head></head><body></body></html>');
-  const values = { presentation: 'native', displayMode: 'hover', imports: [
+  await fs.writeFile(workbench, '<html><head></head><body></body><script src="./workbench.js"></script></html>');
+  const values = { presentation: 'native', displayMode: 'hover', statusbar: false, imports: [
     'file:///keep/existing.js',
     'file:///extensions/local-tools.scm-line-stats-0.2.1/media/strings.js',
     'file:///extensions/local-tools.scm-line-stats-0.2.1/media/native-hover.js',
@@ -27,19 +27,16 @@ test('installed renderer is registered as one stable bundle and applied idempote
   const uri = filePath => ({ fsPath: filePath, scheme: 'file', toString: () => pathToFileURL(filePath).toString() });
   const config = { get: (key, fallback) => values[key] ?? fallback, update: async (key, value) => { values[key] = value; } };
   let calls = 0;
-  let failToApply = false;
   const vscode = {
     env: { language: 'zh-cn', appRoot: path.join(root, 'app') },
     workspace: { getConfiguration: () => config },
     ConfigurationTarget: { Global: 1 },
     extensions: { getExtension: () => ({ activate: async () => {} }) },
+    window: { showInformationMessage: async () => {}, showWarningMessage: async () => {} },
     Uri: { file: uri, joinPath: (base, ...parts) => uri(path.join(base.fsPath, ...parts)) },
     commands: { executeCommand: async command => {
-      assert.equal(command, 'extension.updateCustomCSS');
       calls++;
-      if (failToApply) return;
-      const bundle = await fs.readFile(new URL(values.imports[1]), 'utf8');
-      await fs.writeFile(workbench, `<html><head><script>${bundle}</script></head><body></body></html>`);
+      assert.fail(`The legacy Loader writer must not be called: ${command}`);
     } },
   };
   const options = { vscode, context: {
@@ -47,8 +44,11 @@ test('installed renderer is registered as one stable bundle and applied idempote
     globalStorageUri: { ...uri(path.join(root, 'storage/local-tools.scm-line-stats')), scheme: 'vscode-userdata', toString: () => 'vscode-userdata:/storage/local-tools.scm-line-stats' },
   }, text: createStrings('en'), output: { appendLine() {} } };
   const first = await ensureRenderer(options);
-  assert.equal(first.state, 'reload-required');
-  assert.equal(calls, 1);
+  assert.equal(first.state, 'manual-update-required');
+  assert.equal(calls, 0);
+  assert.equal(values.imports.length, 3, 'startup does not change imports');
+  assert.equal((await fs.readFile(workbench, 'utf8')).includes('VSCODE-CUSTOM-CSS-START'), false);
+  assert.equal((await ensureRenderer({ ...options, resetMode: true })).state, 'reload-required');
   assert.equal(values.imports.length, 2);
   assert.equal(values.imports[0], 'file:///keep/existing.js');
   assert.match(values.imports[1], /^file:/);
@@ -58,16 +58,18 @@ test('installed renderer is registered as one stable bundle and applied idempote
   assert.match(source, /DOMContentLoaded/);
   assert.match(source, /sl-bar-add/);
   assert.equal((await ensureRenderer(options)).state, 'ready');
-  assert.equal(calls, 1);
+  assert.equal(calls, 0);
   values.displayMode = 'inline';
   assert.equal((await ensureRenderer(options)).state, 'disabled');
   await ensureRenderer({ ...options, resetMode: true });
   assert.equal(values.displayMode, 'hover');
   assert.equal(values.presentation, 'native');
-  assert.equal(calls, 1);
-  await fs.writeFile(workbench, '<html><head></head></html>');
-  failToApply = true;
-  await assert.rejects(ensureRenderer(options), /colored hover renderer/);
+  assert.equal(calls, 0);
+  await fs.writeFile(workbench, '');
+  assert.equal((await ensureRenderer(options)).state, 'manual-update-required');
+  assert.equal(await fs.readFile(workbench, 'utf8'), '', 'startup never repairs or rewrites application files');
+  assert.equal((await ensureRenderer({ ...options, resetMode: true })).state, 'ready');
+  assert.match(await fs.readFile(workbench, 'utf8'), /src="\.\/workbench.js"/);
 });
 
 test('bundle carries both language resources and drawing code from the shipped files', async () => {

@@ -32,23 +32,23 @@
         color:var(--vscode-editorHoverWidget-foreground,var(--vscode-foreground,#ccc));
         border:1px solid var(--vscode-editorHoverWidget-border,#454545);
         box-shadow:var(--vscode-shadow-lg,0 4px 12px #0005);
-        font-family:var(--vscode-font-family,sans-serif); font-size:13px; line-height:1.5;
+        font-family:var(--vscode-font-family,sans-serif); font-size:13px; line-height:19px;
         user-select:text; overflow:hidden;
       }
       .monaco-reduce-motion .scm-lines-hover.fade-in { animation:none; }
-      .scm-lines-hover .sl-header { padding:12px 14px 8px; }
+      .scm-lines-hover .sl-header { padding:12px 12px 8px; }
       .scm-lines-hover .sl-title { font-weight:600; overflow-wrap:anywhere; }
       .scm-lines-hover .sl-subtitle { color:var(--vscode-descriptionForeground,#aaa); font-size:12px; margin-top:3px; }
-      .scm-lines-hover .sl-body { padding:6px 14px 12px; }
-      .scm-lines-hover .sl-metrics { display:flex; align-items:baseline; gap:18px; }
-      .scm-lines-hover .sl-added { color:var(--vscode-gitDecoration-addedResourceForeground,#81b88b); }
-      .scm-lines-hover .sl-deleted { color:var(--vscode-gitDecoration-deletedResourceForeground,#c74e39); }
-      .scm-lines-hover .sl-value { font-size:18px; font-weight:600; font-variant-numeric:tabular-nums; margin-right:4px; }
+      .scm-lines-hover .sl-body { padding:0 12px 10px; }
+      .scm-lines-hover .sl-metrics { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 16px; }
+      .scm-lines-hover .sl-added { color:var(--vscode-scmGraph-historyItemHoverAdditionsForeground,var(--vscode-gitDecoration-addedResourceForeground,#81b88b)); }
+      .scm-lines-hover .sl-deleted { color:var(--vscode-scmGraph-historyItemHoverDeletionsForeground,var(--vscode-gitDecoration-deletedResourceForeground,#c74e39)); }
+      .scm-lines-hover .sl-value { font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; margin-right:4px; }
       .scm-lines-hover .sl-caption { font-size:12px; }
-      .scm-lines-hover .sl-bar { display:flex; height:4px; border-radius:2px; overflow:hidden; margin-top:11px; background:var(--vscode-editorHoverWidget-border,#454545); }
-      .scm-lines-hover .sl-bar-add { background:var(--vscode-gitDecoration-addedResourceForeground,#81b88b); }
-      .scm-lines-hover .sl-bar-del { background:var(--vscode-gitDecoration-deletedResourceForeground,#c74e39); }
-      .scm-lines-hover .sl-footer { border-top:1px solid var(--vscode-editorHoverWidget-border,#454545); padding:8px 14px; color:var(--vscode-descriptionForeground,#aaa); font-size:12px; }
+      .scm-lines-hover .sl-bar { display:flex; height:3px; border-radius:2px; overflow:hidden; margin-top:10px; background:var(--vscode-editorHoverWidget-border,#454545); }
+      .scm-lines-hover .sl-bar-add { background:var(--vscode-scmGraph-historyItemHoverAdditionsForeground,var(--vscode-gitDecoration-addedResourceForeground,#81b88b)); }
+      .scm-lines-hover .sl-bar-del { background:var(--vscode-scmGraph-historyItemHoverDeletionsForeground,var(--vscode-gitDecoration-deletedResourceForeground,#c74e39)); }
+      .scm-lines-hover .sl-footer { border-top:1px solid var(--vscode-editorHoverWidget-border,#454545); margin:0 12px; padding:8px 0 10px; color:var(--vscode-descriptionForeground,#aaa); font-size:12px; overflow-wrap:anywhere; }
       .scm-lines-hover-open .monaco-hover:not(.scm-lines-hover) { visibility:hidden !important; }
     `;
     document.head.appendChild(style);
@@ -353,7 +353,7 @@
     listen(window, 'resize', hide);
 
     window[NAME] = {
-      version: '0.2.4',
+      version: '0.2.6',
       showForElement: show,
       dispose() {
         disposed = true;

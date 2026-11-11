@@ -1,4 +1,163 @@
 /* The bundled script enables this class only while the color theme is selected. */
+.dark2026-synthwave {
+  --synthwave-neon-start: var(--vscode-dark2026OneDarkPro-neonStart, #9566ff);
+  --synthwave-neon-middle: var(--vscode-dark2026OneDarkPro-neonMiddle, #478fff);
+  --synthwave-neon-end: var(--vscode-dark2026OneDarkPro-neonEnd, #03edf9);
+  --synthwave-neon-edge: linear-gradient(110deg, var(--synthwave-neon-start), var(--synthwave-neon-middle) 48%, var(--synthwave-neon-end));
+  --synthwave-neon-surface: linear-gradient(110deg,
+    color-mix(in srgb, var(--synthwave-neon-start) 35%, #11151d),
+    color-mix(in srgb, var(--synthwave-neon-middle) 35%, #11151d) 48%,
+    color-mix(in srgb, var(--synthwave-neon-end) 30%, #11151d));
+  --synthwave-card-base: color-mix(in srgb, var(--vscode-editorHoverWidget-background, #202122) 85%, #11151d);
+  --synthwave-card-surface: linear-gradient(135deg,
+    color-mix(in srgb, var(--synthwave-neon-start) 9%, var(--synthwave-card-base)),
+    color-mix(in srgb, var(--synthwave-neon-end) 5%, var(--synthwave-card-base)));
+  --synthwave-card-divider: color-mix(in srgb, var(--synthwave-neon-middle) 25%, transparent);
+}
+
+/* Native graph hovers and line-stat hovers share one quiet neon card surface. */
+.dark2026-synthwave :is(.scm-lines-hover, .monaco-hover.history-item-hover) {
+  box-sizing: border-box;
+  min-width: min(340px, calc(100vw - 24px));
+  max-width: min(460px, calc(100vw - 24px)) !important;
+  background: var(--synthwave-card-surface) padding-box, var(--synthwave-neon-edge) border-box !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px #0006,
+    0 0 14px color-mix(in srgb, var(--synthwave-neon-start) 14%, transparent),
+    0 0 18px color-mix(in srgb, var(--synthwave-neon-end) 9%, transparent) !important;
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground, #ccc));
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: 13px !important;
+  line-height: 19px;
+}
+.dark2026-synthwave .scm-lines-hover .sl-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.dark2026-synthwave .scm-lines-hover .sl-subtitle,
+.dark2026-synthwave .scm-lines-hover .sl-footer {
+  color: var(--vscode-descriptionForeground, #aaa);
+}
+.dark2026-synthwave .scm-lines-hover .sl-footer {
+  border-top-color: var(--synthwave-card-divider);
+}
+.dark2026-synthwave .scm-lines-hover .sl-bar {
+  background: var(--synthwave-card-divider);
+}
+.dark2026-synthwave .monaco-hover.history-item-hover .hover-contents {
+  padding: 12px !important;
+}
+.dark2026-synthwave .monaco-hover.history-item-hover .history-item-hover-container {
+  overflow-wrap: anywhere;
+}
+.dark2026-synthwave .monaco-hover.history-item-hover .history-item-hover-container > .rendered-markdown {
+  font-size: inherit;
+  line-height: inherit;
+}
+.dark2026-synthwave .monaco-hover.history-item-hover .history-item-hover-container > .rendered-markdown > p {
+  margin: 6px 0;
+}
+.dark2026-synthwave .monaco-hover.history-item-hover .history-item-hover-container > .rendered-markdown:first-child > p {
+  margin-top: 0;
+}
+.dark2026-synthwave .monaco-hover.history-item-hover .history-item-hover-container > .rendered-markdown:last-child > p {
+  font-size: 12px;
+}
+.dark2026-synthwave .monaco-hover.history-item-hover hr {
+  height: 0;
+  margin: 8px 0 !important;
+  border: 0;
+  border-top: 1px solid var(--synthwave-card-divider);
+}
+.dark2026-synthwave .monaco-hover.history-item-hover a {
+  color: color-mix(in srgb, var(--synthwave-neon-end) 70%, var(--vscode-foreground, #ccc));
+}
+.dark2026-synthwave .monaco-hover.history-item-hover a:hover {
+  color: var(--synthwave-neon-end);
+}
+.dark2026-synthwave .workbench-hover-container:has(.history-item-hover) .workbench-hover-pointer::after {
+  background-color: color-mix(in srgb, var(--synthwave-neon-start) 7%, var(--synthwave-card-base));
+  border-color: var(--synthwave-neon-middle);
+}
+
+/* A vertical gradient remains visible even on a single right-aligned digit. */
+.dark2026-synthwave .monaco-editor .line-numbers.active-line-number {
+  color: var(--synthwave-neon-end) !important;
+  background-image: linear-gradient(180deg, var(--synthwave-neon-start), var(--synthwave-neon-middle) 48%, var(--synthwave-neon-end));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 3px color-mix(in srgb, var(--synthwave-neon-middle) 35%, transparent),
+    0 0 9px color-mix(in srgb, var(--synthwave-neon-end) 25%, transparent);
+}
+
+/* Share the neon surface across native primary buttons, including notifications. */
+.dark2026-synthwave .monaco-button:not(.secondary):not(.monaco-button-dropdown > .monaco-button),
+.dark2026-synthwave .monaco-button-dropdown:has(> .monaco-text-button:not(.secondary)) {
+  background: var(--synthwave-neon-surface) padding-box, var(--synthwave-neon-edge) border-box !important;
+  background-size: 180% 100% !important;
+  background-position: 0% 50% !important;
+  border: 1px solid transparent !important;
+  border-radius: 4px;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--synthwave-neon-start) 25%, transparent),
+    0 0 14px color-mix(in srgb, var(--synthwave-neon-end) 15%, transparent);
+  transition: background-position 300ms ease, box-shadow 300ms ease;
+}
+/* A split button has one continuous gradient across both actions and separator. */
+.dark2026-synthwave .monaco-button-dropdown:has(> .monaco-text-button:not(.secondary)) > :is(.monaco-button, .monaco-button-dropdown-separator) {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+.dark2026-synthwave .monaco-button-dropdown:has(> .monaco-text-button:not(.secondary)) > .monaco-button-dropdown-separator > div {
+  background-color: color-mix(in srgb, var(--synthwave-neon-end) 35%, transparent) !important;
+}
+.dark2026-synthwave .monaco-button:not(.secondary) {
+  color: #eafbff !important;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--synthwave-neon-end) 25%, transparent);
+}
+.dark2026-synthwave .monaco-button:not(.secondary):not(.monaco-button-dropdown > .monaco-button):is(:hover, :focus-within):not(.disabled):not([aria-disabled="true"]),
+.dark2026-synthwave .monaco-button-dropdown:has(> .monaco-text-button:not(.secondary)):is(:hover, :focus-within):not(.disabled):not(:has(> .monaco-text-button.disabled)) {
+  background-position: 100% 50% !important;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--synthwave-neon-start) 40%, transparent),
+    0 0 18px color-mix(in srgb, var(--synthwave-neon-end) 25%, transparent);
+}
+.dark2026-synthwave .monaco-button-dropdown:has(> .monaco-text-button:not(.secondary).disabled) {
+  opacity: 0.45;
+  box-shadow: none;
+}
+.dark2026-synthwave .monaco-button-dropdown:has(> .monaco-text-button:not(.secondary).disabled) > :is(.monaco-button.disabled, .monaco-button-dropdown-separator) {
+  opacity: 1 !important;
+}
+.dark2026-synthwave .monaco-button:not(.secondary):is(.disabled, [aria-disabled="true"]):not(.monaco-button-dropdown > .monaco-button) {
+  box-shadow: none;
+  transition: none;
+}
+
+/* The script follows the native debugging background, including debug opt-out. */
+.dark2026-synthwave .part.statusbar.dark2026-synthwave-debugging {
+  background-image: var(--synthwave-neon-surface) !important;
+  background-size: 180% 100%;
+  box-shadow: inset 0 2px 10px color-mix(in srgb, var(--synthwave-neon-end) 10%, transparent);
+  animation: dark2026-neon-flow 6s ease-in-out infinite alternate;
+}
+.dark2026-synthwave .part.statusbar.dark2026-synthwave-debugging::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px !important;
+  background: var(--synthwave-neon-edge) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--synthwave-neon-end) 45%, transparent);
+  pointer-events: none;
+  z-index: 5;
+}
+@keyframes dark2026-neon-flow {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
 .dark2026-synthwave .monaco-editor .view-line [class*="mtk"] {
   --synthwave-glow-strength: 0.10;
   text-shadow:
@@ -45,8 +204,12 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .dark2026-synthwave .part.editor .tabs-container > .tab,
-  .dark2026-synthwave .part.editor .tabs-container > .tab > .tab-border-bottom-container {
+  .dark2026-synthwave .part.editor .tabs-container > .tab > .tab-border-bottom-container,
+  .dark2026-synthwave .monaco-button:not(.secondary):not(.monaco-button-dropdown > .monaco-button),
+  .dark2026-synthwave .monaco-button-dropdown:has(> .monaco-text-button:not(.secondary)),
+  .dark2026-synthwave .part.statusbar.dark2026-synthwave-debugging {
     transition: none !important;
+    animation: none !important;
   }
 }
 .dark2026-synthwave :is(.activitybar, .pane-composite-bar) .action-item.checked {

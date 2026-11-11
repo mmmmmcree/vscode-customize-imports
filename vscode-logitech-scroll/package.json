@@ -2,7 +2,7 @@
   "name": "logitech-horizontal-scroll",
   "displayName": "Logitech Horizontal Scroll",
   "description": "Smooth horizontal scrolling for editor code and tabs using mouse shortcuts.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "local-tools",
   "license": "MIT",
   "engines": { "vscode": "^1.90.0" },
@@ -10,6 +10,7 @@
   "extensionKind": ["ui"],
   "main": "./src/extension.js",
   "files": ["src/**/*.js", "media/*.js", "Logitech_horizontal_scroll_patch.md"],
+  "repositorySharedFiles": { "src/custom-css.js": "custom-css.js" },
   "scripts": {
     "check": "node --check src/extension.js && node --check media/Logitech_horizontal_scroll_patch.js",
     "package": "python ../scripts/package_vsix.py ."
