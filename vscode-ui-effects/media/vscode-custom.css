@@ -3,6 +3,49 @@
   backdrop-filter: blur(20px) brightness(1.15);
 }
 .monaco-workbench .quick-input-widget .monaco-inputbox { background: transparent; }
+/* Quick Open, command/search pickers: focus wins over the softer hover state. */
+.monaco-workbench .quick-input-widget .quick-input-list .monaco-list:not(.drop-target):not(.dragging)
+  .monaco-list-row:not(.disabled):not([aria-disabled="true"]):not(:has(.quick-input-list-separator-as-item)):is(:hover, .passive-focused) {
+  background-color: transparent !important;
+  background-image: var(--customize-imports-row-inactive-gradient) !important;
+  outline-color: color-mix(in srgb, var(--customize-imports-neon-middle) 25%, transparent) !important;
+}
+.monaco-workbench .quick-input-widget .quick-input-list .monaco-list:not(.drop-target):not(.dragging)
+  .monaco-list-row:not(.disabled):not([aria-disabled="true"]):not(:has(.quick-input-list-separator-as-item)):is(.focused, .selected) {
+  background-color: transparent !important;
+  background-image: var(--customize-imports-row-gradient) !important;
+  outline-color: color-mix(in srgb, var(--customize-imports-neon-middle) 55%, transparent) !important;
+}
+
+/* An inset neon frame keeps the floating debugger's native size and drag area. */
+.monaco-workbench .debug-toolbar {
+  background: linear-gradient(110deg,
+    color-mix(in srgb, var(--customize-imports-neon-start) 10%, #11151d),
+    color-mix(in srgb, var(--customize-imports-neon-middle) 9%, #11151d) 50%,
+    color-mix(in srgb, var(--customize-imports-neon-end) 8%, #11151d)) !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 14px #0006, 0 0 12px color-mix(in srgb, var(--customize-imports-neon-middle) 18%, transparent) !important;
+}
+.monaco-workbench .debug-toolbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(110deg, var(--customize-imports-neon-start), var(--customize-imports-neon-middle) 50%, var(--customize-imports-neon-end));
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.monaco-workbench .debug-toolbar .drag-area {
+  color: var(--customize-imports-neon-middle);
+}
+.monaco-workbench .debug-toolbar .monaco-action-bar .action-item:not(.disabled)
+  .action-label:not(.disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+  background-color: transparent !important;
+  background-image: var(--customize-imports-row-inactive-gradient) !important;
+  outline-color: var(--customize-imports-neon-end) !important;
+}
 .monaco-editor .line-numbers.active-line-number {
   color: var(--vscode-editorLineNumber-activeForeground);
   text-shadow: 0 0 12px currentColor;
@@ -17,8 +60,7 @@
   background: color-mix(in srgb, var(--vscode-editorHoverWidget-background) 80%, transparent);
 }
 .monaco-editor .cursor {
-  animation: customize-imports-hue 25s linear infinite;
-  background: linear-gradient(rgb(103, 250, 243), rgb(182, 110, 255));
+  background: var(--customize-imports-cursor-gradient);
   border-radius: 2px;
   overflow: visible !important;
 }
@@ -29,14 +71,36 @@
   background: inherit;
   border-radius: 3px;
   transform: scale(1.4, 1.2);
-  filter: blur(4px) brightness(2);
+  filter: blur(3px);
+  opacity: 0.25;
   pointer-events: none;
   z-index: -1;
 }
-@keyframes customize-imports-hue {
-  from { filter: hue-rotate(0deg); }
-  to { filter: hue-rotate(360deg); }
+
+/* Keep the native selection corner pieces aligned vertically. */
+.monaco-workbench .monaco-editor .view-overlays .selected-text {
+  background-color: transparent !important;
+  background-image: var(--customize-imports-selection-inactive-gradient) !important;
 }
-@media (prefers-reduced-motion: reduce) {
-  .monaco-editor .cursor { animation: none; }
+.monaco-workbench .monaco-editor .view-overlays.focused .selected-text {
+  background-image: var(--customize-imports-selection-gradient) !important;
+}
+/* The current line runs left to right; gutter fill meets its violet left edge.
+   Monaco still owns line geometry, cursor movement and selection visibility. */
+.monaco-workbench .monaco-editor .view-overlays .current-line {
+  background-color: transparent !important;
+  background-image: var(--customize-imports-row-inactive-gradient) !important;
+  border-color: transparent !important;
+  background-origin: border-box;
+}
+.monaco-workbench .monaco-editor .view-overlays.focused .current-line {
+  background-image: var(--customize-imports-row-gradient) !important;
+}
+.monaco-workbench .monaco-editor .margin-view-overlays .current-line-margin {
+  background-color: var(--customize-imports-highlight-inactive-start) !important;
+  background-image: none !important;
+  border-color: transparent !important;
+}
+.monaco-workbench .monaco-editor .margin-view-overlays.focused .current-line-margin {
+  background-color: var(--customize-imports-highlight-start) !important;
 }

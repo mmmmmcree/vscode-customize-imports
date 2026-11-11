@@ -1,13 +1,13 @@
 'use strict';/* ============================================================================
  * VSCode Cursor Trail + Smoke（custom-css 注入）
  *   - 弹簧链跟随：头粗尾细的长条光带（还原 77caafe 形态）
- *   - Catmull-Rom→Bezier 平滑 + shadowBlur 贴边泛光（trail-effect2 风格，单次填充不过曝）
+ *   - Catmull-Rom→Bezier 平滑 + 单次描边与低强度 shadowBlur 泛光
  *   - 物理基于固定步长：任意刷新率手感一致，高刷下拖尾不会瞬间收尾
  *   - 烟雾只从链尾尖喷发，浓度随光标速度提升，绝不出现在拖尾中段
  *   - 视口级 fixed canvas
  *
  * 与 vscode-custom.css 的一致性约束：
- *   START/END_COLOR_HSL       ↔ div.cursor 的 linear-gradient
+ *   cursor-palette.css       ↔ 光标与拖尾共用降低亮度后的紫蓝青色板
  *   CURSOR_VISUAL_X/Y_SCALE   ↔ div.cursor::after 的 transform: scale
  * ========================================================================== */
 
@@ -23,28 +23,20 @@
     PHYSICS_FPS: 60,                   // 链松弛步进频率。60 = 还原 trail-effect2 在 60fps 下的手感
     MAX_PHYSICS_STEPS: 6,              // 单帧最多补几步（防长卡顿后"追帧"暴走 / spiral of death）
     MAX_FPS: 0,                        // 渲染封顶；0 = 跟随显示器 rAF。>0（如 60）可在高刷屏限帧省电
-    COLOR_REFRESH_HZ: 30,              // 色串刷新频率（与渲染帧率解耦）
-
-    // 颜色（HSL，避免 per-frame RGB↔HSL）；与 div.cursor 渐变同源
-    START_COLOR_HSL: { h: 177, s: 93, l: 69 },   // ≈ rgb(103,250,243)
-    END_COLOR_HSL:   { h: 266, s: 100, l: 72 },  // ≈ rgb(182,110,255)
-    HUE_SPEED_DEG_PER_SEC: 30,
 
     // 几何（宽度沿运动法线展开；含 ::after scale 放大以对齐发光块）
     CURSOR_VISUAL_X_SCALE: 1.4,
     CURSOR_VISUAL_Y_SCALE: 1.2,
     BAND_WIDTH_RATIO: 1.0,
-    HEAD_FADE_PARTICLES: 3,            // 前 N 粒子 alpha 渐入 + 几何收口，柔化与光标衔接
     TAIL_FADE_START: 0.55,             // 轨迹比例，超过此处尾部 alpha 渐隐（长条"溶解"收口）
     TAIL_FADE_POWER: 2.5,
     TAIL_FADE_END_ALPHA: 0.0,
     IDLE_FADE_SECONDS: 1.5,            // 静止超过该秒数后整条光带（含泛光）淡出
 
-    // 泛光（trail-effect2 风格：canvas shadowBlur 贴边发光）
-    // source-over 单次填充：shadow 画在形状下方，本体不被叠加 → 不会过曝发白
-    GLOW_BLUR_PX: 20,                  // 发光扩散半径
-    GLOW_PASSES: 2,                    // 发光遍数（越多光晕越浓；本体颜色不变）
-    CORE_ALPHA: 1.0,                   // 主光带不透明度；逐光标 idle 淡出另在 globalAlpha 叠加
+    // 单次 source-over 描边，光晕与本体一起绘制，避免重复叠亮。
+    GLOW_BLUR_PX: 10,
+    GLOW_ALPHA: 0.28,
+    CORE_ALPHA: 0.90,
 
     // 物理（弹簧链跟随手感；固定步长 → 与刷新率无关）
     LERP_X: 0.42,
@@ -63,7 +55,7 @@
     SMOKE_DRIFT_SPEED: 38,            // 随机漂移 px/s
     SMOKE_BACKWARD_BIAS: 28,          // 沿尾部切线继续外漂 px/s
     SMOKE_DRAG_PER_SEC: 0.08,         // 速度每秒衰减到原来的此比例（按 dt 归一）
-    SMOKE_PEAK_ALPHA: 0.5,            // 烟雾中心不透明度（'lighter' 叠加的可见"核"）
+    SMOKE_PEAK_ALPHA: 0.22,           // 烟雾使用 source-over，重叠时仍保留原有色相
     SMOKE_ALONG_SPREAD: 1.0,         // 沿运动方向的随机散布（×法向宽度）：打散高速时的"烟雾柱"，0=只横向
     // 浓度随光标速度（越快越浓：喷发率 + 不透明度同时提升）
     SMOKE_SPEED_FULL_PXS: 1000,      // 光标速度达此值(px/s)时浓度倍率到最大
@@ -83,38 +75,53 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
-  /** HSL 插值（角度走最短路径） */
-  function lerpHsl(c1, c2, t) {
-    const dh = ((c2.h - c1.h + 540) % 360) - 180;
-    return { h: (c1.h + dh * t + 360) % 360, s: lerp(c1.s, c2.s, t), l: lerp(c1.l, c2.l, t) };
-  }
-  const hsla = (h, s, l, a) =>
-    `hsla(${h.toFixed(1)},${s.toFixed(1)}%,${l.toFixed(1)}%,${a.toFixed(3)})`;
+  const rgba = (color, alpha) => `rgba(${color.r.toFixed(1)},${color.g.toFixed(1)},${color.b.toFixed(1)},${alpha.toFixed(3)})`;
+  const interpolate = (a, b, t) => ({ r: lerp(a.r, b.r, t), g: lerp(a.g, b.g, t), b: lerp(a.b, b.b, t) });
 
-  /* ---- 共享：色相 / alpha 缓存（只取决于 i/N，与具体光标无关） ---- */
-
-  const baseHsl = new Array(N);
-  for (let i = 0; i < N; i++) baseHsl[i] = lerpHsl(CONFIG.START_COLOR_HSL, CONFIG.END_COLOR_HSL, i / (N - 1));
-
-  const colorStrCache = new Array(N).fill('hsla(0,0%,100%,1)');
-  let hueOffset = 0;
+  /* Resolve CSS color-mix once per palette change, never once per animation frame. */
+  const fallbackPalette = [{ r: 120, g: 84, b: 205 }, { r: 59, g: 116, b: 205 }, { r: 6, g: 189, b: 201 }];
+  let palette = fallbackPalette;
+  let paletteKey;
+  let paletteContext;
+  const baseRgb = new Array(N);
+  const colorStrCache = new Array(N);
   let lastTimeMs = 0;
-  let colorAccum = 0;                 // 色串刷新时间累计
 
-  /** 尾部 alpha 渐隐 + 当前 hueOffset；头部保持实心（与光标 startColor 无缝衔接，不渐入）。
-   *  逐光标 idle 淡出在渲染时叠加。 */
+  function syncPalette() {
+    const root = document.querySelector('.monaco-workbench') || document.documentElement;
+    const styles = getComputedStyle(root);
+    const values = ['start', 'middle', 'end'].map(name => styles.getPropertyValue(`--customize-imports-neon-${name}`).trim());
+    const key = values.join('|');
+    if (key === paletteKey) return;
+    paletteKey = key;
+    paletteContext ||= document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    palette = values.map((value, i) => {
+      if (!value || !paletteContext || !CSS.supports('color', value)) return fallbackPalette[i];
+      paletteContext.clearRect(0, 0, 1, 1);
+      paletteContext.fillStyle = value;
+      paletteContext.fillRect(0, 0, 1, 1);
+      const [r, g, b] = paletteContext.getImageData(0, 0, 1, 1).data;
+      return { r, g, b };
+    });
+    for (let i = 0; i < N; i++) {
+      const position = i / (N - 1) * 2;
+      const index = Math.min(1, Math.floor(position));
+      baseRgb[i] = interpolate(palette[index], palette[index + 1], position - index);
+    }
+    refreshSharedColors();
+  }
+
+  /** 尾部逐渐透明；光标与所有拖尾使用同一组固定色点，避免独立色相循环漂移。 */
   function refreshSharedColors() {
     const tailStart = CONFIG.TAIL_FADE_START * (N - 1);
     const tailEnd = CONFIG.TAIL_FADE_END_ALPHA;
     for (let i = 0; i < N; i++) {
-      const c = baseHsl[i];
-      const h = (c.h + hueOffset) % 360;
       let a = 1;
       if (i > tailStart) {
         const tailT = (i - tailStart) / (N - 1 - tailStart);
         a *= 1 - (1 - tailEnd) * Math.pow(tailT, CONFIG.TAIL_FADE_POWER);
       }
-      colorStrCache[i] = hsla(h, c.s, c.l, a);
+      colorStrCache[i] = rgba(baseRgb[i], a);
     }
   }
 
@@ -357,8 +364,7 @@
       const p0 = model.particles[0];
       const tail = model.particles[N - 1];
       const grad = targetCtx.createLinearGradient(head.tipX, head.tipY, tail.x, tail.y / yScale);
-      const c0 = baseHsl[0];
-      grad.addColorStop(0, hsla((c0.h + hueOffset) % 360, c0.s, c0.l, 0));   // 尖点透明
+      grad.addColorStop(0, rgba(baseRgb[0], 0));                              // 尖点透明
       const f0 = head.f0;
       grad.addColorStop(f0, colorStrCache[0]);                                // 光标中心起实色
       for (let i = 2; i < N; i += 2) grad.addColorStop(f0 + (1 - f0) * (i / (N - 1)), colorStrCache[i]);
@@ -368,7 +374,7 @@
 
     /** 各向异性圆头笔刷沿中心线描边：
      *  block → 笔刷宽 visX、竖直拉伸到 visY（scale(1, visY/visX)）；圆头融入光标、斜向无缝、无棱角。
-     *  line  → 不拉伸，细描边。glow 会带 shadow 多次调用本函数。 */
+     *  line  → 不拉伸，细描边；本体和泛光在同一次描边中完成。 */
     function paintTrail(targetCtx, model, grad, yScale, lineWidth, head) {
       targetCtx.save();
       targetCtx.scale(1, yScale);
@@ -393,20 +399,18 @@
       return { yScale, lineWidth: visX * CONFIG.BAND_WIDTH_RATIO };
     }
 
-    /** 烟雾：软径向渐变圆。'lighter' 叠加；每颗 peak 已含速度浓度倍率。 */
+    /** 烟雾：软径向渐变圆。source-over 保留色相；每颗 peak 已含速度浓度倍率。 */
     function drawSmokeShapes(targetCtx, model) {
       const smokes = model.smokes;
-      const c = baseHsl[N - 1];
-      const h = (c.h + hueOffset) % 360;
-      const baseColor = `${h.toFixed(0)}, ${c.s.toFixed(0)}%, ${c.l.toFixed(0)}%`;
+      const color = baseRgb[N - 1];
       for (let i = 0; i < smokes.length; i++) {
         const s = smokes[i];
         const t = s.age / s.life;
         const alpha = (1 - t) * s.peak;
         const r = s.baseR * (1 + t * CONFIG.SMOKE_GROWTH);
         const grad = targetCtx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
-        grad.addColorStop(0, `hsla(${baseColor}, ${alpha.toFixed(3)})`);
-        grad.addColorStop(1, `hsla(${baseColor}, 0)`);
+        grad.addColorStop(0, rgba(color, alpha));
+        grad.addColorStop(1, rgba(color, 0));
         targetCtx.fillStyle = grad;
         targetCtx.beginPath();
         targetCtx.arc(s.x, s.y, r, 0, Math.PI * 2);
@@ -414,9 +418,7 @@
       }
     }
 
-    /* ---- 渲染：单次 source-over 填充 + shadowBlur 贴边泛光 ----
-     * shadow 由同一次 fill 投在形状外圈，本体不被二次叠加 → 不会过曝发白。
-     * GLOW_PASSES 多遍只加厚 shadow 光晕（每遍 shadowColor 带 alpha），本体颜色稳定。 */
+    /* ---- 本体和低强度泛光只描边一次，避免多遍叠亮半透明区域。 ---- */
 
     function drawTrailGlow(model) {
       ctx.save();
@@ -433,16 +435,8 @@
       if (ctx.globalAlpha < 0.003) { ctx.restore(); return; }   // 条已消失：跳过（烟雾在别处单独画）
       const head = headExtent(model, yScale, lineWidth);
       const grad = makeGradient(ctx, model, yScale, head);
-      // 阴影发光遍：本体颜色不变，只靠 shadow 在形状外圈叠出光晕
-      if (CONFIG.GLOW_BLUR_PX > 0 && CONFIG.GLOW_PASSES > 0) {
-        const c = baseHsl[Math.floor(N / 2)];
-        ctx.shadowColor = hsla((c.h + hueOffset) % 360, c.s, c.l, 1);
-        ctx.shadowBlur = CONFIG.GLOW_BLUR_PX;
-        for (let pass = 0; pass < CONFIG.GLOW_PASSES; pass++) paintTrail(ctx, model, grad, yScale, lineWidth, head);
-        ctx.shadowBlur = 0;
-        ctx.shadowColor = 'transparent';
-      }
-      // 本体（无阴影）一次描边，颜色干净不过曝
+      ctx.shadowColor = rgba(palette[1], CONFIG.GLOW_ALPHA);
+      ctx.shadowBlur = CONFIG.GLOW_BLUR_PX;
       paintTrail(ctx, model, grad, yScale, lineWidth, head);
       ctx.restore();
     }
@@ -451,7 +445,7 @@
       drawTrailGlow(model);
       if (model.smokes.length > 0) {
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = model.globalAlpha;
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
@@ -502,6 +496,7 @@
 
   function scanCursors() {
     if (disposed || !isFocused || document.hidden || reducedMotion.matches) return;
+    syncPalette();
     const seen = new Set();
     let changed = false;
     for (const target of document.querySelectorAll('.monaco-editor .cursor')) {
@@ -521,7 +516,6 @@
     if (lastDrawMs && nowMs - lastDrawMs < minFrameMs) { rafId = requestAnimationFrame(animate); return; }
     const dt = lastTimeMs ? Math.min((nowMs - lastTimeMs) / 1000, 0.25) : 0;
     lastTimeMs = nowMs; lastDrawMs = nowMs;
-    hueOffset = (hueOffset + dt * CONFIG.HUE_SPEED_DEG_PER_SEC) % 360;
     let anyVisible = false;
     for (const data of trails.values()) {
       syncCursor(data);
@@ -530,14 +524,13 @@
     }
     scene.clear();
     if (!anyVisible) return;
-    colorAccum += dt;
-    if (colorAccum >= 1 / CONFIG.COLOR_REFRESH_HZ) { colorAccum = 0; refreshSharedColors(); }
     for (const data of trails.values()) if (data.model.visible) scene.drawTrail(data.model);
     rafId = requestAnimationFrame(animate);
   }
 
   function startAnimation() {
     if (rafId === null && !disposed && isFocused && !document.hidden && !reducedMotion.matches) {
+      syncPalette();
       lastTimeMs = 0; lastDrawMs = 0;
       rafId = requestAnimationFrame(animate);
     }
@@ -573,11 +566,12 @@
     listen(document, 'keydown', startAnimation, true);
     listen(document, 'pointerup', () => { scanCursors(); startAnimation(); }, true);
     scanTimer = setInterval(scanCursors, CONFIG.CURSOR_POLLING_MS);
-    refreshSharedColors();
+    syncPalette();
     scanCursors();
   }
   const api = {
-    getStats: () => ({ cursors: trails.size, animating: rafId !== null, maxFPS: CONFIG.MAX_FPS, disposed }),
+    getStats: () => ({ cursors: trails.size, animating: rafId !== null, maxFPS: CONFIG.MAX_FPS, disposed,
+      palette: palette.map(color => ({ ...color })) }),
     dispose() {
       disposed = true;
       stopAnimation();

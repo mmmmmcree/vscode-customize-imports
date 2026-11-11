@@ -1,0 +1,23 @@
+/* Shared by row highlights, selections, the caret and the canvas renderer. */
+.monaco-workbench {
+  --customize-imports-neon-start: color-mix(in srgb, var(--vscode-dark2026OneDarkPro-neonStart, #9566ff) 78%, #11151d);
+  --customize-imports-neon-middle: color-mix(in srgb, var(--vscode-dark2026OneDarkPro-neonMiddle, #478fff) 78%, #11151d);
+  --customize-imports-neon-end: color-mix(in srgb, var(--vscode-dark2026OneDarkPro-neonEnd, #03edf9) 78%, #11151d);
+  --customize-imports-cursor-gradient: linear-gradient(180deg,
+    var(--customize-imports-neon-start), var(--customize-imports-neon-middle) 50%, var(--customize-imports-neon-end));
+  --customize-imports-highlight-start: color-mix(in srgb, var(--customize-imports-neon-start) 28%, transparent);
+  --customize-imports-highlight-middle: color-mix(in srgb, var(--customize-imports-neon-middle) 26%, transparent);
+  --customize-imports-highlight-end: color-mix(in srgb, var(--customize-imports-neon-end) 24%, transparent);
+  --customize-imports-highlight-inactive-start: color-mix(in srgb, var(--customize-imports-neon-start) 14%, transparent);
+  --customize-imports-highlight-inactive-middle: color-mix(in srgb, var(--customize-imports-neon-middle) 13%, transparent);
+  --customize-imports-highlight-inactive-end: color-mix(in srgb, var(--customize-imports-neon-end) 12%, transparent);
+  /* Vertical stops line up across Monaco's separate rounded selection pieces. */
+  --customize-imports-selection-gradient: linear-gradient(180deg,
+    var(--customize-imports-highlight-start), var(--customize-imports-highlight-middle) 50%, var(--customize-imports-highlight-end));
+  --customize-imports-selection-inactive-gradient: linear-gradient(180deg,
+    var(--customize-imports-highlight-inactive-start), var(--customize-imports-highlight-inactive-middle) 50%, var(--customize-imports-highlight-inactive-end));
+  --customize-imports-row-gradient: linear-gradient(90deg,
+    var(--customize-imports-highlight-start), var(--customize-imports-highlight-middle) 50%, var(--customize-imports-highlight-end));
+  --customize-imports-row-inactive-gradient: linear-gradient(90deg,
+    var(--customize-imports-highlight-inactive-start), var(--customize-imports-highlight-inactive-middle) 50%, var(--customize-imports-highlight-inactive-end));
+}

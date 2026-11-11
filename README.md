@@ -10,7 +10,7 @@
 | [vscode-scm-line-stats](vscode-scm-line-stats/README.md) | 原生 Git 更改的行数统计和悬停卡片 |
 | [scripts](scripts/README.md) | 可复用的 VSIX 打包器和一键安装入口 |
 
-在仓库根目录运行：
+在仓库根目录运行 ：
 
 ```powershell
 python scripts/install.py

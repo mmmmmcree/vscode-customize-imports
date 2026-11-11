@@ -14,6 +14,10 @@ Dark 2026 的界面、One Dark Pro 的代码配色和 Synthwave 光晕一起打�
 
 当前行号将紫 → 蓝 → 青的渐变裁剪到数字字形内，并附带低强度蓝青光晕。渐变从上到下覆盖行高，避免单个右对齐数字只显示横向渐变末端的一种颜色。高亮由 Monaco 原生的当前行号类驱动，不增加脚本、轮询或持续动画。选择器限定在当前主题的活动行号，兼容 UI Effects 同时加载及两种加载顺序；切换主题或停用 Synthwave 后恢复原有行号样式。
 
+布局分隔条使用 Monaco 原生的 `.monaco-sash.hover` 与 `.monaco-sash.active` 状态，在原有 `::before` 指示条上绘制渐变和光晕。两种状态共用 `opacity 300ms ease, transform 300ms ease`：竖条以上端为原点展开，横条以左端为原点展开；离开时反向收回并淡出，完整显示和消失均为 300 毫秒。渐变与光晕一起缩放、淡入淡出，快速移入移出时从当前程度平滑反向，悬停与拖动状态切换时保持展开。变换只作用于绘制用的伪元素，指示条粗细、拖动命中范围、光标及禁用行为沿用原生实现。禁用时立即隐藏；系统减少动态效果或 VS Code 的 `monaco-reduce-motion` 状态下立即切换。基础主题的 `sash.hoverBorder` 为紫色 `#9566FF`，启用 Synthwave 后呈现三色渐变。
+
+原生徽标统一使用紫蓝青渐变底、深色文字和柔和光晕，覆盖 `.monaco-count-badge`、活动栏等位置的 `.badge-content`、操作菜单徽标、面板筛选徽标、配置文件文字标记、欢迎页新功能标记和扩展图标徽标。计数文字稍加粗，原生边距、圆角、最小尺寸、更新与隐藏逻辑继续生效，多位数字可自然扩展为胶囊；进度徽标的遮罩及动画继续工作。仅绘制徽标显示面，外层图标容器保留原有布局。这两处效果复用 `dark2026OneDarkPro.neonStart`、`neonMiddle`、`neonEnd`，切换主题或停用 Synthwave 时一起退出。Webview 和系统界面中的徽标由各自的页面或系统控制。
+
 SCM 统计卡片 `.scm-lines-hover` 与原生图表卡片 `.history-item-hover` 共用 13px/19px 的字体与行高、12px 留白、8px 圆角、暗色渐变底、紫蓝青渐变边框与低强度光晕。卡片最小宽度为 340px，受视口宽度约束；长路径和文本可换行。图表原有的提交链接、分支标签、焦点轮廓及悬停指针继续使用原生结构，编辑器等其他悬停框不套用这组卡片样式。
 
 统计卡片的数字缩小为与图表正文一致的 13px，并直接使用 `scmGraph.historyItemHoverAdditionsForeground` 和 `scmGraph.historyItemHoverDeletionsForeground`，因此两处的新增、删除色保持一致；比例条继续按实际行数计算。此主题将它们设为薄荷绿 `#72E3B2` 与珊瑚红 `#FF7B86`。图表分支线使用紫、蓝、青、淡紫、薄荷绿，本地、远端及基线引用分别使用紫、青、蓝；这些 `scmGraph.*` 值维护在 `theme-overrides.json`，可通过 `workbench.colorCustomizations` 覆盖。更新后需要分别重新启用 SCM 卡片与 Synthwave 光晕。
@@ -113,7 +117,7 @@ python scripts/build_theme.py
 python ../scripts/package_vsix.py .
 ```
 
-第一个步骤需要本机已安装 Dark 2026 和 One Dark Pro，并自动合并 `theme-overrides.json` 与 `languages/*.json` 的界面颜色、TextMate 和语义定制；语言规则按文件名排序加载。第二个步骤使用仓库共用的 Python VSIX 打包器，将 `package.json.files` 白名单中的主题、语法补充、脚本与样式连同文档、许可证及共用更新模块打包，生成 `dist/dark2026-one-dark-pro-1.2.14.vsix`。它不需要重新读取源主题，也不需要 pip 包、npm 依赖或 vsce。
+第一个步骤需要本机已安装 Dark 2026 和 One Dark Pro，并自动合并 `theme-overrides.json` 与 `languages/*.json` 的界面颜色、TextMate 和语义定制；语言规则按文件名排序加载。第二个步骤使用仓库共用的 Python VSIX 打包器，将 `package.json.files` 白名单中的主题、语法补充、脚本与样式连同文档、许可证及共用更新模块打包，生成 `dist/dark2026-one-dark-pro-1.2.16.vsix`。它不需要重新读取源主题，也不需要 pip 包、npm 依赖或 vsce。
 
 自动检测使用 PATH 中的 `code` 和用户目录的 `.vscode/extensions`。自定义位置可在本插件目录指定：
 
