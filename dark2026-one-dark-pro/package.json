@@ -2,11 +2,11 @@
   "name": "dark2026-one-dark-pro",
   "displayName": "Dark 2026 + One Dark Pro",
   "description": "Dark 2026 UI with One Dark Pro syntax and semantic highlighting.",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "publisher": "local",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.123.0"
+    "vscode": "^1.111.0"
   },
   "categories": [
     "Themes"

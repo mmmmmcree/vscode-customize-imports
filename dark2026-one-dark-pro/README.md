@@ -8,6 +8,8 @@ C++ 使用蓝灰色显示命名空间、黄色显示类和结构体、薄荷绿�
 
 从仓库根目录执行 `python scripts/install.py --plugin dark2026-one-dark-pro`。安装后按 `Ctrl+K Ctrl+T`，选择 **Dark 2026 + One Dark Pro**。
 
+支持 VS Code `1.111.0` 及以上的 1.x 版本，包括原先支持的 `1.123.0` 及后续版本。主题配色已随扩展打包，安装时无需 VS Code 内置 Dark 2026；源主题所在的 VS Code 版本不等于扩展的最低运行版本。`1.2.7` 将误设的 `^1.123.0` 扩展为 `^1.111.0`，保留原有配色、光晕和 C++ 着色实现。
+
 光晕通过命令 **Dark 2026: 启用或更新 Synthwave 光晕** 注册到 Custom CSS and JS Loader，按提示重新加载即可；无需手写 `media/` 或扩展版本路径。切换到其他主题后光晕自动关闭，切回时恢复。运行 **Dark 2026: 停用 Synthwave 光晕** 可以移除注册；卸载前先停用。
 
 光晕颜色跟随文字，强度按 One Dark Pro 的配色语义组分级：变量、标点和注释较弱，函数、命名空间和关键字居中，类、类型、concept 和枚举较强。命名空间与函数的基础强度均为 0.52，concept 为 0.78，分别按各自的出现频次调整。默认还根据当前可见代码的出现频次调整，越常见越弱。可通过 `dark2026OneDarkPro.glowIntensity` 调整总强度，或用 `dark2026OneDarkPro.frequencyAware` 关闭频次调整；修改后再运行启用或更新命令。同色的语法类型共用一个组，具体算法见完整说明。
@@ -26,7 +28,7 @@ python scripts/build_theme.py
 python ../scripts/package_vsix.py .
 ```
 
-安装产物为 `dist/dark2026-one-dark-pro-1.2.6.vsix`。直接打包和安装不要求本机有 One Dark Pro 扩展；重新生成配色时才需要。
+安装产物为 `dist/dark2026-one-dark-pro-1.2.7.vsix`。直接打包和安装不要求本机有 One Dark Pro 扩展；重新生成配色时才需要。
 
 Concept 补充着色只查询可见的模板约束名字，每次最多 64 个候选、全局最多 4 个并发请求，变化后防抖 250 毫秒。文本分析与定义结果都有缓存，不扫描整个项目。符号尚未被语言服务索引时，等待后续编辑器或诊断更新再重试。开发验证可在本目录运行 `npm test` 和 `npm run check`。
 
