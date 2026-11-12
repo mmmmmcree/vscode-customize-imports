@@ -68,6 +68,8 @@
     style.textContent = [...matches].map(([name, block]) => `
       .monaco-workbench .monaco-editor .${block} {
         background: var(--customize-imports-cursor-gradient) !important;
+        background-size: var(--customize-imports-cursor-gradient-size) !important;
+        background-position: 0 0 !important;
         border-color: transparent !important;
         border-radius: 2px;
       }

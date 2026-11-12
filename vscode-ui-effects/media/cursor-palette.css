@@ -19,6 +19,8 @@
     var(--customize-imports-cursor-orchid) 31.9%,
     var(--customize-imports-cursor-violet) 47.1%,
     var(--customize-imports-cursor-ice) 100%);
+  /* A short caret shows adjacent hues rather than the full trail spectrum. */
+  --customize-imports-cursor-gradient-size: 100% 300%;
   --customize-imports-highlight-start: color-mix(in srgb, var(--customize-imports-neon-start) 28%, transparent);
   --customize-imports-highlight-middle: color-mix(in srgb, var(--customize-imports-neon-middle) 26%, transparent);
   --customize-imports-highlight-end: color-mix(in srgb, var(--customize-imports-neon-end) 24%, transparent);

@@ -94,6 +94,8 @@
 }
 .monaco-editor .cursor {
   background: var(--customize-imports-cursor-gradient);
+  background-size: var(--customize-imports-cursor-gradient-size);
+  background-position: 0 0;
   border-radius: 2px;
   overflow: visible !important;
 }

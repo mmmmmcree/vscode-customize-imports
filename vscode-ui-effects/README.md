@@ -23,7 +23,9 @@
 
 光标和拖尾共用独立的七色亮 neon 初始色板：玫瑰粉 `#ff68ba` → 亮粉 `#ff68d4` → 电光玫粉 `#ff68ed` → 粉紫 `#e668ff` → 兰紫 `#d768ff` → 亮紫 `#a368ff` → 冰青 `#68e2ff`。色序沿连续的色相路径展开，默认各色的 HSL 明度与饱和度一致。参考旧提交 `77caafe644faac50ab58b53087b072c4100a53d2` 的 HSL 空间插值与时间滚动方式：按色相距离分配色点位置，再细分采样供 CSS 和 Canvas 共用，减轻短拖尾内的分段感；色点位置在滚动时固定，整条渐变的色相一起连续变化。默认每秒 30°、12 秒循环一轮，用 `customizeImports.cursorCycleSeconds` 调整周期（2–60 秒）。CSS 光标、Vim 字符光标、拖尾、泛光和尾部烟雾共用同一时钟和色相偏移，保持同步；循环时会经过其他 neon 色相。窗口失焦、隐藏或启用减少动态效果时冻结颜色，恢复后接着滚动；关闭拖尾时光标仍变色。行高亮、选区、搜索列表、滚动条和其他工作台配色继续使用原来的紫蓝青色板。颜色统一计算后提供给 CSS 和 Canvas，保留原生闪烁与当前光晕，不覆盖光标动画或使用双倍亮度滤镜。拖尾仍以单次描边绘制，烟雾采用普通透明叠加，减少重叠发白。
 
-Vim Visual 模式额外绘制的当前字符矩形，也使用相同渐变并搭配深色文字。通过成对的装饰样式识别 VSCodeVim 光标，不依赖随机生成的类名；Vim 激活、主题切换和扩展宿主重启后自动重新识别。此效果跟随 `customizeImports.interfaceStyles` 开关。
+光标内部将共享渐变纵向拉长至三倍，只呈现相邻色相的一段连续过渡，减轻较短光标内的色块分层。本体与光晕使用相同背景尺寸和起点；渐变仍随时间完整循环，拖尾继续显示完整色谱。
+
+Vim Visual 模式额外绘制的当前字符矩形，也使用相同渐变、背景尺寸与起点，并搭配深色文字。通过成对的装饰样式识别 VSCodeVim 光标，不依赖随机生成的类名；Vim 激活、主题切换和扩展宿主重启后自动重新识别。此效果跟随 `customizeImports.interfaceStyles` 开关。
 
 编辑器选区（包括 Vim Visual 的字符、整行、块选择及鼠标选区）使用同色系的半透明紫蓝青渐变，失焦后选区变淡。只绘制原生选区背景，保留语法颜色、选区尺寸和圆角遮罩；此效果同样跟随 `customizeImports.interfaceStyles`。
 
@@ -37,7 +39,9 @@ Vim Visual 模式额外绘制的当前字符矩形，也使用相同渐变并搭
 
 若代码光晕正常但光标变色和拖尾同时消失，先运行 **Customize Imports: 启用或更新界面特效**。主题的启用命令不会注册本插件；正常启用后，`vscode_custom_css.imports` 应包含扩展存储目录中的 `effects.js`。光标变色需要 `customizeImports.interfaceStyles`，拖尾需要 `customizeImports.cursorTrail`，两项默认均为 `true`。
 
-本目录执行 `npm run package`，或从仓库根目录执行 `python scripts/package_vsix.py vscode-ui-effects`，生成 `dist/customize-imports-effects-0.1.13.vsix`。
+本目录执行 `npm run package`，或从仓库根目录执行 `python scripts/package_vsix.py vscode-ui-effects`，生成 `dist/customize-imports-effects-0.1.14.vsix`。
+
+`0.1.14` 将原生光标与 Vim 字符光标的渐变拉长，让内部只呈现相邻色相的连续过渡，减轻分层；保留完整拖尾渐变、流光周期和其他高亮配色。
 
 `0.1.13` 优化七色亮 neon 色板，采用连续色序、统一明度与密集 HSL 插值，减轻拖尾内部的颜色分界线；保留现有流光周期、光晕与行高亮等配色。
 
