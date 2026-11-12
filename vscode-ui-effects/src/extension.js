@@ -14,19 +14,24 @@ function isManagedImport(value, current) {
 async function source(context) {
   const read = file => fs.readFile(vscode.Uri.joinPath(context.extensionUri, 'media', file).fsPath, 'utf8');
   const config = vscode.workspace.getConfiguration('customizeImports');
+  const interfaceStyles = config.get('interfaceStyles', true);
+  const cursorTrail = config.get('cursorTrail', true);
   let css = await read('cursor-palette.css');
-  if (config.get('interfaceStyles', true)) css += '\n' + await read('vscode-custom.css');
+  if (interfaceStyles) css += '\n' + await read('vscode-custom.css');
   if (config.get('watermark', true)) {
     const image = await fs.readFile(vscode.Uri.joinPath(context.extensionUri, 'media', 'vscode-logo.png').fsPath);
     css += '\n:root { --customize-imports-watermark: url("data:image/png;base64,' + image.toString('base64') + '"); }\n';
     css += await read('vscode-logo.css');
   }
-  const options = { MAX_FPS: config.get('maxFPS', 60), SMOKE_ENABLED: config.get('smoke', true) };
-  const vimCursor = config.get('interfaceStyles', true) ? await read('vim-cursor.js') : '';
-  const trail = config.get('cursorTrail', true) ? await read('trail-effect.js') : '';
+  const options = { MAX_FPS: config.get('maxFPS', 60), SMOKE_ENABLED: config.get('smoke', true),
+    COLOR_CYCLE_SECONDS: config.get('cursorCycleSeconds', 12), CURSOR_STYLES_ENABLED: interfaceStyles };
+  const colorFlow = interfaceStyles || cursorTrail ? await read('cursor-color-flow.js') : '';
+  const vimCursor = interfaceStyles ? await read('vim-cursor.js') : '';
+  const trail = cursorTrail ? await read('trail-effect.js') : '';
   return `(() => {
     window.vscodeCustomizeEffects?.dispose();
     window.vscodeCursorTrail?.dispose();
+    window.vscodeCursorColorFlow?.dispose();
     window.vscodeVimCursorEffects?.dispose();
     const style = document.createElement('style');
     style.id = 'customize-imports-effects';
@@ -36,12 +41,13 @@ async function source(context) {
     const api = { dispose() {
       style.remove();
       window.vscodeCursorTrail?.dispose();
+      window.vscodeCursorColorFlow?.dispose();
       window.vscodeVimCursorEffects?.dispose();
       delete window.vscodeCursorTrailOptions;
       if (window.vscodeCustomizeEffects === api) delete window.vscodeCustomizeEffects;
     } };
     window.vscodeCustomizeEffects = api;
-  })();\n${vimCursor}\n${trail}\n`;
+  })();\n${colorFlow}\n${vimCursor}\n${trail}\n`;
 }
 
 function activate(context) {

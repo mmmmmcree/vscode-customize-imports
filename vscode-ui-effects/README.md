@@ -10,6 +10,7 @@
 {
   "customizeImports.cursorTrail": true,
   "customizeImports.smoke": true,
+  "customizeImports.cursorCycleSeconds": 12,
   "customizeImports.maxFPS": 60,
   "customizeImports.interfaceStyles": true,
   "customizeImports.watermark": true
@@ -18,9 +19,9 @@
 
 修改设置后，再运行启用或更新命令。停用时运行 **Customize Imports: 停用界面特效** 并重新加载；卸载前也先停用，移除 Loader 中登记的脚本。
 
-拖尾保留弹簧链、渐变光带和尾部烟雾。默认最高 60 FPS；静止淡出后停止绘制，失焦和隐藏时暂停，跟随系统减少动画设置，最多同时跟踪 64 个光标。重复加载会清理上一次的 canvas、监听器、定时器和动画。水印使用独立 PNG 资源，启用时再生成 CSS，源码不再包含大段 Base64。
+拖尾保留弹簧链、渐变光带和尾部烟雾。默认最高 60 FPS；静止淡出后停止 canvas 绘制，光标颜色继续低频流动。失焦和隐藏时暂停，跟随系统减少动画设置，最多同时跟踪 64 个光标。重复加载会清理上一次的 canvas、监听器、定时器和动画。水印使用独立 PNG 资源，启用时再生成 CSS，源码不再包含大段 Base64。
 
-光标和拖尾共用柔和的紫→蓝→青渐变，跟随 Dark2026 的 `neonStart`、`neonMiddle`、`neonEnd` 主题颜色，并混入 22% 深色降低亮度；其他主题也有相同色系的默认值。光标保留 VS Code 原生闪烁方式，不再单独循环色相或使用双倍亮度滤镜。拖尾以单次描边搭配较弱泛光，烟雾采用普通透明叠加，减少重叠发白。仅启用拖尾时也会加载共用色板。
+光标和拖尾共用独立的七色亮 neon 初始色板：玫瑰粉 `#ff68ba` → 亮粉 `#ff68d4` → 电光玫粉 `#ff68ed` → 粉紫 `#e668ff` → 兰紫 `#d768ff` → 亮紫 `#a368ff` → 冰青 `#68e2ff`。色序沿连续的色相路径展开，默认各色的 HSL 明度与饱和度一致。参考旧提交 `77caafe644faac50ab58b53087b072c4100a53d2` 的 HSL 空间插值与时间滚动方式：按色相距离分配色点位置，再细分采样供 CSS 和 Canvas 共用，减轻短拖尾内的分段感；色点位置在滚动时固定，整条渐变的色相一起连续变化。默认每秒 30°、12 秒循环一轮，用 `customizeImports.cursorCycleSeconds` 调整周期（2–60 秒）。CSS 光标、Vim 字符光标、拖尾、泛光和尾部烟雾共用同一时钟和色相偏移，保持同步；循环时会经过其他 neon 色相。窗口失焦、隐藏或启用减少动态效果时冻结颜色，恢复后接着滚动；关闭拖尾时光标仍变色。行高亮、选区、搜索列表、滚动条和其他工作台配色继续使用原来的紫蓝青色板。颜色统一计算后提供给 CSS 和 Canvas，保留原生闪烁与当前光晕，不覆盖光标动画或使用双倍亮度滤镜。拖尾仍以单次描边绘制，烟雾采用普通透明叠加，减少重叠发白。
 
 Vim Visual 模式额外绘制的当前字符矩形，也使用相同渐变并搭配深色文字。通过成对的装饰样式识别 VSCodeVim 光标，不依赖随机生成的类名；Vim 激活、主题切换和扩展宿主重启后自动重新识别。此效果跟随 `customizeImports.interfaceStyles` 开关。
 
@@ -36,7 +37,15 @@ Vim Visual 模式额外绘制的当前字符矩形，也使用相同渐变并搭
 
 若代码光晕正常但光标变色和拖尾同时消失，先运行 **Customize Imports: 启用或更新界面特效**。主题的启用命令不会注册本插件；正常启用后，`vscode_custom_css.imports` 应包含扩展存储目录中的 `effects.js`。光标变色需要 `customizeImports.interfaceStyles`，拖尾需要 `customizeImports.cursorTrail`，两项默认均为 `true`。
 
-本目录执行 `npm run package`，或从仓库根目录执行 `python scripts/package_vsix.py vscode-ui-effects`，生成 `dist/customize-imports-effects-0.1.9.vsix`。
+本目录执行 `npm run package`，或从仓库根目录执行 `python scripts/package_vsix.py vscode-ui-effects`，生成 `dist/customize-imports-effects-0.1.13.vsix`。
+
+`0.1.13` 优化七色亮 neon 色板，采用连续色序、统一明度与密集 HSL 插值，减轻拖尾内部的颜色分界线；保留现有流光周期、光晕与行高亮等配色。
+
+`0.1.12` 参考 `77caafe` 恢复整条渐变的 HSL 色相滚动方式及默认 30°/秒速度，光标与拖尾保持同步，保留亮粉初始色板与当前拖尾形态。
+
+`0.1.11` 使七色亮粉渐变随时间流动，光标与拖尾共用循环、支持单独光标模式，并保留原生闪烁和其他高亮配色。
+
+`0.1.10` 提亮光标与拖尾，增加独立七色亮粉渐变；行高亮等工作台配色不变，弹簧链、拖尾长度、帧率与暂停行为沿用原设置。
 
 `0.1.9` 更新共用注入器，特效脚本在原生编辑器界面绘制后启动。更新后运行一次启用或更新命令，再按提示重载。图片预览出现 Service Worker 注册错误时，缓存恢复步骤见 [scripts/README.md](../scripts/README.md)。
 

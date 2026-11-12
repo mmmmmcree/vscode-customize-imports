@@ -7,12 +7,14 @@
  *   - 视口级 fixed canvas
  *
  * 与 vscode-custom.css 的一致性约束：
- *   cursor-palette.css       ↔ 光标与拖尾共用降低亮度后的紫蓝青色板
+ *   cursor-color-flow.js     ↔ 光标与拖尾共用同一时间帧和七色亮粉 neon 色板
  *   CURSOR_VISUAL_X/Y_SCALE   ↔ div.cursor::after 的 transform: scale
  * ========================================================================== */
 
 (() => {
   window.vscodeCursorTrail?.dispose();
+  const colorFlow = window.vscodeCursorColorFlow;
+  if (!colorFlow) return;
   /* --------------------------- CONFIG --------------------------- */
   const CONFIG = {
     TRAIL_LENGTH: 24,                  // 链粒子数（拖尾长度旋钮之一：越多越长）
@@ -35,8 +37,8 @@
 
     // 单次 source-over 描边，光晕与本体一起绘制，避免重复叠亮。
     GLOW_BLUR_PX: 10,
-    GLOW_ALPHA: 0.28,
-    CORE_ALPHA: 0.90,
+    GLOW_ALPHA: 0.40,
+    CORE_ALPHA: 0.95,
 
     // 物理（弹簧链跟随手感；固定步长 → 与刷新率无关）
     LERP_X: 0.42,
@@ -55,7 +57,7 @@
     SMOKE_DRIFT_SPEED: 38,            // 随机漂移 px/s
     SMOKE_BACKWARD_BIAS: 28,          // 沿尾部切线继续外漂 px/s
     SMOKE_DRAG_PER_SEC: 0.08,         // 速度每秒衰减到原来的此比例（按 dt 归一）
-    SMOKE_PEAK_ALPHA: 0.22,           // 烟雾使用 source-over，重叠时仍保留原有色相
+    SMOKE_PEAK_ALPHA: 0.28,           // 烟雾使用 source-over，重叠时仍保留原有色相
     SMOKE_ALONG_SPREAD: 1.0,         // 沿运动方向的随机散布（×法向宽度）：打散高速时的"烟雾柱"，0=只横向
     // 浓度随光标速度（越快越浓：喷发率 + 不透明度同时提升）
     SMOKE_SPEED_FULL_PXS: 1000,      // 光标速度达此值(px/s)时浓度倍率到最大
@@ -78,51 +80,38 @@
   const rgba = (color, alpha) => `rgba(${color.r.toFixed(1)},${color.g.toFixed(1)},${color.b.toFixed(1)},${alpha.toFixed(3)})`;
   const interpolate = (a, b, t) => ({ r: lerp(a.r, b.r, t), g: lerp(a.g, b.g, t), b: lerp(a.b, b.b, t) });
 
-  /* Resolve CSS color-mix once per palette change, never once per animation frame. */
-  const fallbackPalette = [{ r: 120, g: 84, b: 205 }, { r: 59, g: 116, b: 205 }, { r: 6, g: 189, b: 201 }];
-  let palette = fallbackPalette;
-  let paletteKey;
-  let paletteContext;
-  const baseRgb = new Array(N);
-  const colorStrCache = new Array(N);
+  let colorFrame = colorFlow.getFrame();
+  let palette = colorFrame.palette;
+  let gradientStops = [];
   let lastTimeMs = 0;
 
   function syncPalette() {
-    const root = document.querySelector('.monaco-workbench') || document.documentElement;
-    const styles = getComputedStyle(root);
-    const values = ['start', 'middle', 'end'].map(name => styles.getPropertyValue(`--customize-imports-neon-${name}`).trim());
-    const key = values.join('|');
-    if (key === paletteKey) return;
-    paletteKey = key;
-    paletteContext ||= document.createElement('canvas').getContext('2d', { willReadFrequently: true });
-    palette = values.map((value, i) => {
-      if (!value || !paletteContext || !CSS.supports('color', value)) return fallbackPalette[i];
-      paletteContext.clearRect(0, 0, 1, 1);
-      paletteContext.fillStyle = value;
-      paletteContext.fillRect(0, 0, 1, 1);
-      const [r, g, b] = paletteContext.getImageData(0, 0, 1, 1).data;
-      return { r, g, b };
-    });
-    for (let i = 0; i < N; i++) {
-      const position = i / (N - 1) * 2;
-      const index = Math.min(1, Math.floor(position));
-      baseRgb[i] = interpolate(palette[index], palette[index + 1], position - index);
-    }
+    const next = colorFlow.getFrame();
+    if (next === colorFrame && gradientStops.length) return;
+    colorFrame = next;
+    palette = next.palette;
     refreshSharedColors();
   }
 
-  /** 尾部逐渐透明；光标与所有拖尾使用同一组固定色点，避免独立色相循环漂移。 */
+  /** 复用共用时钟的连续 HSL 采样，并叠加原有的尾部透明渐隐。 */
   function refreshSharedColors() {
-    const tailStart = CONFIG.TAIL_FADE_START * (N - 1);
+    const positions = new Set([0, 1]);
+    for (let i = 2; i < N; i += 2) positions.add(i / (N - 1));
+    const anchors = colorFrame.stops;
+    for (const stop of anchors) positions.add(stop.position);
     const tailEnd = CONFIG.TAIL_FADE_END_ALPHA;
-    for (let i = 0; i < N; i++) {
+    let index = 0;
+    gradientStops = [...positions].sort((a, b) => a - b).map(t => {
+      while (index < anchors.length - 2 && t > anchors[index + 1].position) index++;
+      const left = anchors[index], right = anchors[index + 1];
+      const color = interpolate(left.color, right.color, (t - left.position) / (right.position - left.position));
       let a = 1;
-      if (i > tailStart) {
-        const tailT = (i - tailStart) / (N - 1 - tailStart);
+      if (t > CONFIG.TAIL_FADE_START) {
+        const tailT = (t - CONFIG.TAIL_FADE_START) / (1 - CONFIG.TAIL_FADE_START);
         a *= 1 - (1 - tailEnd) * Math.pow(tailT, CONFIG.TAIL_FADE_POWER);
       }
-      colorStrCache[i] = rgba(baseRgb[i], a);
-    }
+      return { position: t, color: rgba(color, a) };
+    });
   }
 
   /* --------------------------- TrailModel（per-cursor 状态） ---------------------------
@@ -359,16 +348,13 @@
       }
     }
 
-    /** tip→tail 渐变：头部延长段 alpha 0 → 到 p0 处变实色 → 其后沿 colorStrCache。 */
+    /** tip→tail 渐变：透明延长段 → 光标实色 → 共用七色与尾部渐隐。 */
     function makeGradient(targetCtx, model, yScale, head) {
-      const p0 = model.particles[0];
       const tail = model.particles[N - 1];
       const grad = targetCtx.createLinearGradient(head.tipX, head.tipY, tail.x, tail.y / yScale);
-      grad.addColorStop(0, rgba(baseRgb[0], 0));                              // 尖点透明
+      grad.addColorStop(0, rgba(colorFrame.head, 0));                         // 尖点透明
       const f0 = head.f0;
-      grad.addColorStop(f0, colorStrCache[0]);                                // 光标中心起实色
-      for (let i = 2; i < N; i += 2) grad.addColorStop(f0 + (1 - f0) * (i / (N - 1)), colorStrCache[i]);
-      grad.addColorStop(1, colorStrCache[N - 1]);
+      for (const stop of gradientStops) grad.addColorStop(f0 + (1 - f0) * stop.position, stop.color);
       return grad;
     }
 
@@ -402,7 +388,7 @@
     /** 烟雾：软径向渐变圆。source-over 保留色相；每颗 peak 已含速度浓度倍率。 */
     function drawSmokeShapes(targetCtx, model) {
       const smokes = model.smokes;
-      const color = baseRgb[N - 1];
+      const color = colorFrame.tail;
       for (let i = 0; i < smokes.length; i++) {
         const s = smokes[i];
         const t = s.age / s.life;
@@ -435,7 +421,7 @@
       if (ctx.globalAlpha < 0.003) { ctx.restore(); return; }   // 条已消失：跳过（烟雾在别处单独画）
       const head = headExtent(model, yScale, lineWidth);
       const grad = makeGradient(ctx, model, yScale, head);
-      ctx.shadowColor = rgba(palette[1], CONFIG.GLOW_ALPHA);
+      ctx.shadowColor = rgba(colorFrame.glow, CONFIG.GLOW_ALPHA);
       ctx.shadowBlur = CONFIG.GLOW_BLUR_PX;
       paintTrail(ctx, model, grad, yScale, lineWidth, head);
       ctx.restore();
@@ -516,6 +502,7 @@
     if (lastDrawMs && nowMs - lastDrawMs < minFrameMs) { rafId = requestAnimationFrame(animate); return; }
     const dt = lastTimeMs ? Math.min((nowMs - lastTimeMs) / 1000, 0.25) : 0;
     lastTimeMs = nowMs; lastDrawMs = nowMs;
+    syncPalette();
     let anyVisible = false;
     for (const data of trails.values()) {
       syncCursor(data);
@@ -571,7 +558,7 @@
   }
   const api = {
     getStats: () => ({ cursors: trails.size, animating: rafId !== null, maxFPS: CONFIG.MAX_FPS, disposed,
-      palette: palette.map(color => ({ ...color })) }),
+      palette: palette.map(color => ({ ...color })), colorPhase: colorFrame.phase }),
     dispose() {
       disposed = true;
       stopAnimation();

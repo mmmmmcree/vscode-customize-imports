@@ -106,6 +106,8 @@ python scripts/install.py --plugin dark2026-one-dark-pro
 
 标签页、活动栏和灯泡保留霓虹装饰。标签页底部的 4px 粉青渐变共用 `transition: opacity 300ms ease, clip-path 300ms ease`：选中时透明度从 0 到 1、右侧裁剪从 100% 到 0，从左向右展开并淡入；取消选中时两项属性同时返回原值，从右向左收回并淡出。两种状态只定义端点，不覆盖共同的过渡规则。左粉右青的配色固定，底部淡光以相同的 300 毫秒时长同步过渡。快速切换时浏览器从当前插值平滑反向，避免重新从端点播放。系统启用减少动态效果时立即切换；无须持续执行动画脚本。
 
+同样的 4px、300 毫秒动画覆盖原生面板标签、侧栏横向导航、设置页标签及扩展详情页导航。面板使用紫蓝青，侧栏使用薄荷青蓝，设置页使用琥珀珊瑚紫，扩展页使用蓝紫粉；各区域保留统一的柔和底光。底部导航保留原生顶部指示位置。指示器装饰层不接收鼠标事件，标签尺寸、徽标和拖放提示保持原生行为；键盘焦点使用独立标记，系统或 VS Code 的减少动画设置下立即切换。此更新只调整导航选中指示，不改编辑区的光标、选区、当前行、语法和行号配色。
+
 配色、条高和 `ease` 缓动曲线来自最早提交 `2e3e2b5`。本版将原先的 1 秒过渡缩短为 300 毫秒，同时用同一曲线驱动透明度与裁剪。顶部横条已移除，并保留拖放提示。`theme-overrides.json` 将选中、活动及未聚焦活动标签的顶部边线设为透明，基础主题无需 Loader 即可去除蓝线；启用 Synthwave 时也隐藏原生顶部容器。
 
 光标渐变变色、光标拖尾和界面样式由 UI Effects 插件提供，需另外运行 **Customize Imports: 启用或更新界面特效**。若 `vscode_custom_css.imports` 中只有主题的 `synthwave84.js`，这些光标效果不会加载；该命令会登记 `effects.js`，保留主题、SCM 和其他导入，再由共用安全更新器应用并提示重载。
@@ -121,7 +123,7 @@ python scripts/build_theme.py
 python ../scripts/package_vsix.py .
 ```
 
-第一个步骤需要本机已安装 Dark 2026 和 One Dark Pro，并自动合并 `theme-overrides.json` 与 `languages/*.json` 的界面颜色、TextMate 和语义定制；语言规则按文件名排序加载。第二个步骤使用仓库共用的 Python VSIX 打包器，将 `package.json.files` 白名单中的主题、语法补充、脚本、样式和图标连同文档、许可证及共用更新模块打包，生成 `dist/dark2026-one-dark-pro-1.2.18.vsix`。它不需要重新读取源主题，也不需要 pip 包、npm 依赖或 vsce。
+第一个步骤需要本机已安装 Dark 2026 和 One Dark Pro，并自动合并 `theme-overrides.json` 与 `languages/*.json` 的界面颜色、TextMate 和语义定制；语言规则按文件名排序加载。第二个步骤使用仓库共用的 Python VSIX 打包器，将 `package.json.files` 白名单中的主题、语法补充、脚本、样式和图标连同文档、许可证及共用更新模块打包，生成 `dist/dark2026-one-dark-pro-1.2.19.vsix`。它不需要重新读取源主题，也不需要 pip 包、npm 依赖或 vsce。
 
 自动检测使用 PATH 中的 `code` 和用户目录的 `.vscode/extensions`。自定义位置可在本插件目录指定：
 

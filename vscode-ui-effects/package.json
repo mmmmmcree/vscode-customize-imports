@@ -2,7 +2,7 @@
   "name": "customize-imports-effects",
   "displayName": "Customize Imports Effects",
   "description": "Cursor trails, translucent widgets and a custom editor watermark.",
-  "version": "0.1.9",
+  "version": "0.1.13",
   "publisher": "local-tools",
   "license": "MIT",
   "engines": { "vscode": "^1.90.0" },
@@ -12,7 +12,7 @@
   "files": ["src/**/*.js", "media/*.js", "media/*.css", "media/*.png"],
   "repositorySharedFiles": { "src/custom-css.js": "custom-css.js" },
   "scripts": {
-    "check": "node --check src/extension.js && node --check media/trail-effect.js && node --check media/vim-cursor.js",
+    "check": "node --check src/extension.js && node --check media/cursor-color-flow.js && node --check media/trail-effect.js && node --check media/vim-cursor.js",
     "package": "python ../scripts/package_vsix.py ."
   },
   "contributes": {
@@ -25,6 +25,7 @@
       "properties": {
         "customizeImports.cursorTrail": { "type": "boolean", "default": true, "description": "显示光标拖尾。修改设置后运行启用或更新界面特效命令。" },
         "customizeImports.smoke": { "type": "boolean", "default": true, "description": "显示拖尾末端烟雾。" },
+        "customizeImports.cursorCycleSeconds": { "type": "number", "default": 12, "minimum": 2, "maximum": 60, "description": "光标与拖尾色相完整滚动一轮的秒数。默认对应旧版每秒 30 度。修改后运行启用或更新界面特效命令。" },
         "customizeImports.maxFPS": { "type": "number", "default": 60, "minimum": 15, "maximum": 240, "description": "拖尾绘制帧率上限，空闲或窗口失焦时暂停绘制。" },
         "customizeImports.interfaceStyles": { "type": "boolean", "default": true, "description": "启用半透明快速输入框、霓虹列表、调试工具栏与滚动滑块、编辑器高亮和渐变光标。" },
         "customizeImports.watermark": { "type": "boolean", "default": true, "description": "使用内置的编辑器水印。" }

@@ -1,10 +1,24 @@
-/* Shared by row highlights, selections, the caret and the canvas renderer. */
+/* Workbench highlights keep their palette; caret/trail use independent pinks. */
 .monaco-workbench {
   --customize-imports-neon-start: color-mix(in srgb, var(--vscode-dark2026OneDarkPro-neonStart, #9566ff) 78%, #11151d);
   --customize-imports-neon-middle: color-mix(in srgb, var(--vscode-dark2026OneDarkPro-neonMiddle, #478fff) 78%, #11151d);
   --customize-imports-neon-end: color-mix(in srgb, var(--vscode-dark2026OneDarkPro-neonEnd, #03edf9) 78%, #11151d);
+  /* One hue path and matching HSL lightness keep the bright cores continuous. */
+  --customize-imports-cursor-pink: #ff68d4;
+  --customize-imports-cursor-fuchsia: #ff68ed;
+  --customize-imports-cursor-orchid: #d768ff;
+  --customize-imports-cursor-violet: #a368ff;
+  --customize-imports-cursor-ice: #68e2ff;
+  --customize-imports-cursor-blush: #e668ff;
+  --customize-imports-cursor-rose: #ff68ba;
   --customize-imports-cursor-gradient: linear-gradient(180deg,
-    var(--customize-imports-neon-start), var(--customize-imports-neon-middle) 50%, var(--customize-imports-neon-end));
+    var(--customize-imports-cursor-rose) 0%,
+    var(--customize-imports-cursor-pink) 7.6%,
+    var(--customize-imports-cursor-fuchsia) 14.9%,
+    var(--customize-imports-cursor-blush) 27.5%,
+    var(--customize-imports-cursor-orchid) 31.9%,
+    var(--customize-imports-cursor-violet) 47.1%,
+    var(--customize-imports-cursor-ice) 100%);
   --customize-imports-highlight-start: color-mix(in srgb, var(--customize-imports-neon-start) 28%, transparent);
   --customize-imports-highlight-middle: color-mix(in srgb, var(--customize-imports-neon-middle) 26%, transparent);
   --customize-imports-highlight-end: color-mix(in srgb, var(--customize-imports-neon-end) 24%, transparent);

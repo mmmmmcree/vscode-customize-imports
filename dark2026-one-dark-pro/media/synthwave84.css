@@ -216,6 +216,73 @@
   --synthwave-glow-strength: 0.08;
   text-shadow: 0 0 1px color-mix(in srgb, currentColor calc(8% * var(--synthwave-overall-intensity, 1)), transparent);
 }
+/* Horizontal navigation uses several accents; editor content keeps its palette. */
+.dark2026-synthwave .pane-composite-part {
+  --synthwave-selection-edge: linear-gradient(90deg, var(--synthwave-neon-start), var(--synthwave-neon-middle) 50%, var(--synthwave-neon-end));
+  --synthwave-selection-glow: var(--synthwave-neon-end);
+}
+.dark2026-synthwave :is(.part.sidebar, .part.auxiliarybar) {
+  --synthwave-selection-edge: linear-gradient(90deg, #72e3b2, #03edf9 50%, #478fff);
+  --synthwave-selection-glow: #72e3b2;
+}
+.dark2026-synthwave .settings-tabs-widget {
+  --synthwave-selection-edge: linear-gradient(90deg, #ffd166, #ff7b86 50%, #b77bff);
+  --synthwave-selection-glow: #ffd166;
+}
+.dark2026-synthwave .extension-editor > .body > .navbar {
+  --synthwave-selection-edge: linear-gradient(90deg, #478fff, #b77bff 50%, #ff7bcb);
+  --synthwave-selection-glow: #b77bff;
+}
+.dark2026-synthwave .pane-composite-part > :is(.title, .header-or-footer) > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item,
+.dark2026-synthwave :is(.settings-tabs-widget, .extension-editor > .body > .navbar) .monaco-action-bar .action-item > .action-label {
+  position: relative;
+  box-shadow: inset 0 -5px 25px transparent;
+  transition: box-shadow 300ms ease;
+}
+.dark2026-synthwave .pane-composite-part > :is(.title, .header-or-footer) > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked,
+.dark2026-synthwave :is(.settings-tabs-widget, .extension-editor > .body > .navbar) .monaco-action-bar .action-item > .action-label.checked {
+  box-shadow: inset 0 -5px 25px color-mix(in srgb, var(--synthwave-selection-glow) 14%, transparent);
+}
+/* The indicator owns our paint; action-item pseudos remain native drop targets. */
+.dark2026-synthwave .pane-composite-part > :is(.title, .header-or-footer) > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item > .active-item-indicator {
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100%;
+  pointer-events: none;
+}
+.dark2026-synthwave .pane-composite-part > :is(.title, .header-or-footer) > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item > .active-item-indicator::before {
+  display: none !important;
+}
+.dark2026-synthwave .pane-composite-part > :is(.title, .header-or-footer) > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item > .active-item-indicator::after,
+.dark2026-synthwave :is(.settings-tabs-widget, .extension-editor > .body > .navbar) .monaco-action-bar .action-item > .action-label::after {
+  content: '';
+}
+.dark2026-synthwave :is(.settings-tabs-widget, .extension-editor > .body > .navbar) .monaco-action-bar .action-item > .action-label {
+  border-bottom-color: transparent !important;
+}
+.dark2026-synthwave :is(.settings-tabs-widget, .extension-editor > .body > .navbar) .monaco-action-bar .action-item > .action-label:not(.checked):hover {
+  border-bottom-color: color-mix(in srgb, var(--synthwave-selection-glow) 35%, transparent) !important;
+}
+.dark2026-synthwave .pane-composite-part > :is(.title, .header-or-footer) > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item:is(:focus-visible, :has(> .action-label:focus-visible)) > .active-item-indicator {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--synthwave-selection-glow) 65%, transparent);
+}
+.dark2026-synthwave :is(.settings-tabs-widget, .extension-editor > .body > .navbar) .monaco-action-bar .action-item > .action-label:focus-visible {
+  outline: 1px solid var(--synthwave-selection-glow) !important;
+  outline-offset: 2px;
+}
+/* Footer navigation keeps the native indicator above its labels. */
+.dark2026-synthwave .pane-composite-part > .header-or-footer.footer > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item {
+  box-shadow: inset 0 5px 25px transparent;
+}
+.dark2026-synthwave .pane-composite-part > .header-or-footer.footer > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked {
+  box-shadow: inset 0 5px 25px color-mix(in srgb, var(--synthwave-selection-glow) 14%, transparent);
+}
+.dark2026-synthwave .pane-composite-part > .header-or-footer.footer > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item > .active-item-indicator::after {
+  top: 0;
+  bottom: auto;
+}
+
 .dark2026-synthwave .part.editor .tabs-container > .tab {
   box-shadow: inset 0 -5px 25px #fc28a800;
   position: relative;
@@ -227,14 +294,16 @@
 .dark2026-synthwave .part.editor .tabs-container > .tab.active > .tab-border-top-container {
   display: none !important;
 }
-.dark2026-synthwave .part.editor .tabs-container > .tab > .tab-border-bottom-container {
+.dark2026-synthwave .part.editor .tabs-container > .tab > .tab-border-bottom-container,
+.dark2026-synthwave .pane-composite-part > :is(.title, .header-or-footer) > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item > .active-item-indicator::after,
+.dark2026-synthwave :is(.settings-tabs-widget, .extension-editor > .body > .navbar) .monaco-action-bar .action-item > .action-label::after {
   display: block !important;
   position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
   height: 4px !important;
-  background-image: linear-gradient(to right, #fc28a8, #03edf9) !important;
+  background-image: var(--synthwave-selection-edge, linear-gradient(to right, #fc28a8, #03edf9)) !important;
   /* Both states share this transition so opacity and clipping reverse together. */
   opacity: 0;
   clip-path: inset(0 100% 0 0);
@@ -242,14 +311,26 @@
   pointer-events: none;
   z-index: 10;
 }
-.dark2026-synthwave .part.editor .tabs-container > .tab.active > .tab-border-bottom-container {
+.dark2026-synthwave .part.editor .tabs-container > .tab.active > .tab-border-bottom-container,
+.dark2026-synthwave .pane-composite-part > :is(.title, .header-or-footer) > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked > .active-item-indicator::after,
+.dark2026-synthwave :is(.settings-tabs-widget, .extension-editor > .body > .navbar) .monaco-action-bar .action-item > .action-label.checked::after {
   opacity: 1;
   clip-path: inset(0 0 0 0);
+}
+.dark2026-synthwave.monaco-reduce-motion .pane-composite-part > :is(.title, .header-or-footer) > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item,
+.dark2026-synthwave.monaco-reduce-motion .pane-composite-part > :is(.title, .header-or-footer) > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item > .active-item-indicator::after,
+.dark2026-synthwave.monaco-reduce-motion :is(.settings-tabs-widget, .extension-editor > .body > .navbar) .monaco-action-bar .action-item > .action-label,
+.dark2026-synthwave.monaco-reduce-motion :is(.settings-tabs-widget, .extension-editor > .body > .navbar) .monaco-action-bar .action-item > .action-label::after {
+  transition: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .dark2026-synthwave .monaco-sash::before,
   .dark2026-synthwave .part.editor .tabs-container > .tab,
   .dark2026-synthwave .part.editor .tabs-container > .tab > .tab-border-bottom-container,
+  .dark2026-synthwave .pane-composite-part > :is(.title, .header-or-footer) > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item,
+  .dark2026-synthwave .pane-composite-part > :is(.title, .header-or-footer) > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item > .active-item-indicator::after,
+  .dark2026-synthwave :is(.settings-tabs-widget, .extension-editor > .body > .navbar) .monaco-action-bar .action-item > .action-label,
+  .dark2026-synthwave :is(.settings-tabs-widget, .extension-editor > .body > .navbar) .monaco-action-bar .action-item > .action-label::after,
   .dark2026-synthwave .monaco-button:not(.secondary):not(.monaco-button-dropdown > .monaco-button),
   .dark2026-synthwave .monaco-button-dropdown:has(> .monaco-text-button:not(.secondary)),
   .dark2026-synthwave .part.statusbar.dark2026-synthwave-debugging {
