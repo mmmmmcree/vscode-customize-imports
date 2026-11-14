@@ -2454,7 +2454,7 @@
         "source.cpp entity.name.scope-resolution.namespace.using.cpp"
       ],
       "settings": {
-        "foreground": "#7da9c7"
+        "foreground": "#9bbde0"
       }
     },
     {
@@ -2467,6 +2467,30 @@
       ],
       "settings": {
         "foreground": "#e5c07b"
+      }
+    },
+    {
+      "name": "C++ enum types",
+      "scope": [
+        "source.cpp entity.name.type.enum",
+        "source.cpp support.type.enum"
+      ],
+      "settings": {
+        "foreground": "#dca3c9"
+      }
+    },
+    {
+      "name": "C++ enum members",
+      "scope": "source.cpp variable.other.enummember",
+      "settings": {
+        "foreground": "#b9cc86"
+      }
+    },
+    {
+      "name": "C++ value template parameters",
+      "scope": "source.cpp variable.parameter.template",
+      "settings": {
+        "foreground": "#e06c75"
       }
     },
     {
@@ -2492,6 +2516,13 @@
       }
     },
     {
+      "name": "C++ word-form logical operators",
+      "scope": "source.cpp keyword.operator.wordlike",
+      "settings": {
+        "foreground": "#c678dd"
+      }
+    },
+    {
       "name": "C++ primitive and deduced types",
       "scope": [
         "source.cpp storage.type.primitive.cpp",
@@ -2499,23 +2530,6 @@
       ],
       "settings": {
         "foreground": "#56b6c2"
-      }
-    },
-    {
-      "name": "C++ compile-time evaluation and initialization",
-      "scope": [
-        "source.cpp storage.modifier.constexpr.cpp",
-        "source.cpp storage.modifier.consteval.cpp",
-        "source.cpp storage.modifier.constinit.cpp",
-        "source.cpp storage.modifier.specifier.functional.pre-parameters.constexpr.cpp",
-        "source.cpp storage.modifier.specifier.functional.pre-parameters.consteval.cpp",
-        "source.cpp storage.modifier.lambda.constexpr.cpp",
-        "source.cpp storage.modifier.lambda.consteval.cpp",
-        "source.cpp keyword.other.constinit.cpp",
-        "source.cpp keyword.other.static_assert.cpp"
-      ],
-      "settings": {
-        "foreground": "#d19a66"
       }
     },
     {
@@ -2599,7 +2613,7 @@
       "foreground": "#e5c07b"
     },
     "namespace:cpp": {
-      "foreground": "#7da9c7"
+      "foreground": "#9bbde0"
     },
     "class:cpp": {
       "foreground": "#e5c07b"
@@ -2609,6 +2623,15 @@
     },
     "concept:cpp": {
       "foreground": "#7ec8b5"
+    },
+    "enum:cpp": {
+      "foreground": "#dca3c9"
+    },
+    "enumMember:cpp": {
+      "foreground": "#b9cc86"
+    },
+    "typeParameter:cpp": {
+      "foreground": "#e5c07b"
     }
   }
 }

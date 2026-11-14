@@ -1,11 +1,11 @@
 'use strict';
 
-// C/C++ does not expose a concept semantic token. Confirm constrained parameter
-// names through Go to Definition instead of treating every named type as a concept.
+// Prefer the active language service's native concept tokens. C/C++ versions
+// without that classification use Go to Definition to confirm constrained names.
 const keywords = new Set(('alignas auto bool char char8_t char16_t char32_t class const double enum '
   + 'float int long short signed struct template typename unsigned void volatile wchar_t').split(' '));
 
-function analyze(text) {
+function tokenizeCpp(text) {
   // Preserve UTF-16 offsets while hiding comments, literals and preprocessor lines.
   const code = text.replace(/\/\/(?:[^\r\n\\]|\\(?:\r?\n|[^\r\n]))*|\/\*[\s\S]*?(?:\*\/|$)|(?:u8|[uUL])?R"([^\s()\\]{0,16})\([\s\S]*?\)\1"|"(?:\\[\s\S]|[^"\\])*"|(?<![\p{L}\p{N}_])(?:u8|[uUL])?'(?:\\[\s\S]|[^'\\])*'|^[ \t]*#(?:[^\r\n\\]|\\(?:\r?\n|[^\r\n]))*/gmu,
     value => value.replace(/[^\r\n]/g, ' '));
@@ -13,8 +13,15 @@ function analyze(text) {
   for (const match of code.matchAll(/[\p{L}_][\p{L}\p{N}_]*|::|\.\.\.|->|<=>|<=|>=|[^\s]/gu)) {
     tokens.push({ text: match[0], start: match.index, end: match.index + match[0].length });
   }
+  return tokens;
+}
+
+function analyze(text) {
+  const tokens = tokenizeCpp(text);
   const declarations = [];
+  const typeDeclarations = [];
   const candidates = [];
+  const parameters = [];
   const angles = [];
   let parens = 0, brackets = 0, braces = 0;
   const identifier = value => value && /^[\p{L}_][\p{L}\p{N}_]*$/u.test(value);
@@ -23,6 +30,12 @@ function analyze(text) {
     const token = tokens[i], word = token.text;
     if (word === 'concept' && identifier(tokens[i + 1]?.text)) {
       declarations.push({ ...tokens[i + 1], keywordStart: token.start });
+    }
+    if ((['class', 'struct', 'union', 'enum', 'typename'].includes(word)
+        && identifier(tokens[i + 1]?.text) && !keywords.has(tokens[i + 1].text)
+        && tokens[i + 2]?.text !== '::')
+        || (word === 'using' && identifier(tokens[i + 1]?.text) && tokens[i + 2]?.text === '=')) {
+      typeDeclarations.push({ ...tokens[i + 1], keywordStart: token.start });
     }
     const frame = angles.at(-1);
     if (frame?.parameter && frame.nesting === nesting()) {
@@ -40,16 +53,67 @@ function analyze(text) {
     else if (word === '{') braces++;
     else if (word === '}') braces--;
     else if (word === '<' && (tokens[i - 1]?.text === 'template' || frame?.nesting === nesting())) {
-      angles.push({ template: tokens[i - 1]?.text === 'template', parameter: tokens[i - 1]?.text === 'template', nesting: nesting() });
-    } else if (word === '>' && frame?.nesting === nesting()) angles.pop();
-    else if (word === ',' && frame?.template && frame.nesting === nesting()) frame.parameter = true;
+      angles.push({ template: tokens[i - 1]?.text === 'template', parameter: tokens[i - 1]?.text === 'template', start: i + 1, nesting: nesting() });
+    } else if ((word === '>' || word === ',') && frame?.nesting === nesting()) {
+      if (frame.template) {
+        const parameter = templateParameter(tokens.slice(frame.start, i));
+        if (parameter) parameters.push(parameter);
+        frame.start = i + 1;
+        frame.parameter = true;
+      }
+      if (word === '>') angles.pop();
+    }
   }
-  return { declarations, candidates };
+  return { declarations, typeDeclarations, candidates, parameters };
 }
 
-function registerConceptHighlighting(vscode, color) {
-  const decoration = vscode.window.createTextEditorDecorationType({ color });
+// Only simple declarators are handled here. An identifier followed by an
+// identifier is ambiguous until Go to Definition confirms a concept or a type.
+function templateParameter(tokens) {
+  if (!tokens.length || tokens[0].text === 'template') return undefined;
+  const identifier = token => token && /^[\p{L}_][\p{L}\p{N}_]*$/u.test(token.text) && !keywords.has(token.text);
+  let i = 0, value = false;
+  if (['class', 'typename'].includes(tokens[i].text) && tokens[i + 2]?.text !== '::') {
+    i++;
+    if (tokens[i]?.text === '...') i++;
+    return identifier(tokens[i]) && (!tokens[i + 1] || tokens[i + 1].text === '=')
+      ? { name: tokens[i], kind: 'type' } : undefined;
+  }
+  while (['const', 'volatile', 'typename'].includes(tokens[i]?.text)) { value = true; i++; }
+  let head;
+  if (keywords.has(tokens[i]?.text)) {
+    value = true;
+    while (keywords.has(tokens[i]?.text)) i++;
+  } else {
+    if (tokens[i]?.text === '::') i++;
+    if (!identifier(tokens[i])) return undefined;
+    head = tokens[i++];
+    while (tokens[i]?.text === '::' && identifier(tokens[i + 1])) { head = tokens[i + 1]; i += 2; }
+    if (tokens[i]?.text === '<') {
+      let depth = 0;
+      do {
+        if (tokens[i].text === '<') depth++;
+        if (tokens[i++].text === '>') depth--;
+      } while (i < tokens.length && depth);
+      if (depth) return undefined;
+    }
+  }
+  while (['const', 'volatile', 'auto', '*', '&'].includes(tokens[i]?.text)) { value = true; i++; }
+  if (tokens[i]?.text === '...') i++;
+  if (!identifier(tokens[i]) || (tokens[i + 1] && tokens[i + 1].text !== '=')) return undefined;
+  return { name: tokens[i], head, kind: value ? 'value' : 'unknown' };
+}
+
+function registerConceptHighlighting(vscode, color, parameterColor) {
+  const decoration = vscode.window.createTextEditorDecorationType({ color,
+    rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed });
+  const parameterDecoration = parameterColor && vscode.window.createTextEditorDecorationType({ color: parameterColor,
+    rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed });
   const analysisCache = new WeakMap();
+  const confirmed = new Map();
+  const painted = new WeakMap();
+  const parametersPainted = new WeakMap();
+  const nativeSupport = new Map();
   const results = new Map();
   const pending = new Map();
   const requests = [];
@@ -80,13 +144,101 @@ function registerConceptHighlighting(vscode, color) {
     analysisCache.set(document, { version: document.version, value });
     return value;
   }
-  function enabled() {
-    return vscode.workspace.getConfiguration('workbench').get('colorTheme') === 'Dark 2026 + One Dark Pro'
-      && vscode.workspace.getConfiguration('dark2026OneDarkPro').get('cppConceptHighlighting', true);
+  function enabled(role) {
+    if (vscode.workspace.getConfiguration('workbench').get('colorTheme') !== 'Dark 2026 + One Dark Pro') return false;
+    const config = vscode.workspace.getConfiguration('dark2026OneDarkPro');
+    const concepts = config.get('cppConceptHighlighting', true);
+    const parameters = Boolean(parameterDecoration) && config.get('cppTemplateParameterHighlighting', true);
+    return role === 'concept' ? concepts : role === 'parameter' ? parameters : concepts || parameters;
   }
   const range = (document, token) => new vscode.Range(document.positionAt(token.start), document.positionAt(token.end));
   function key(document, token) {
     return `${document.uri.toString()}\n${document.version}\n${token.start}`;
+  }
+  async function hasNativeConcepts(document) {
+    if (vscode.workspace.getConfiguration('editor', document.uri).get('semanticHighlighting.enabled') === false) return false;
+    const uri = document.uri.toString();
+    let entry = nativeSupport.get(uri);
+    if (!entry) {
+      entry = { native: false };
+      entry.promise = Promise.resolve().then(() => vscode.commands.executeCommand('vscode.provideDocumentSemanticTokensLegend', document.uri))
+        .then(legend => {
+          entry.native = Boolean(legend?.tokenTypes.includes('concept'));
+          entry.nativeParameters = Boolean(legend?.tokenTypes.includes('typeParameter'));
+          return entry.native;
+        }, () => false);
+      nativeSupport.set(uri, entry);
+    }
+    return entry.promise;
+  }
+  function marks(document) {
+    let value = confirmed.get(document);
+    if (!value) { value = new Map(); confirmed.set(document, value); }
+    return value;
+  }
+  function remember(document, token, result) {
+    if (result) marks(document).set(token.start, { ...token, target: result });
+    else if (result === false) marks(document).delete(token.start);
+    // An empty/failed provider response is inconclusive while IntelliSense updates.
+  }
+  function paint(editor) {
+    const document = editor.document;
+    const native = nativeSupport.get(document.uri.toString());
+    let tokens = [], parameterTokens = [];
+    if (enabled() && document.languageId === 'cpp') {
+      const value = parsed(document), candidates = new Map(value.candidates.map(token => [token.start, token]));
+      const retained = marks(document);
+      for (const [start, token] of retained) {
+        const current = candidates.get(start);
+        if (!current || current.text !== token.text || current.end !== token.end) retained.delete(start);
+      }
+      // Retain confirmed offscreen ranges too, so scrolling back needs no repaint.
+      if (enabled('concept') && !native?.native) {
+        tokens = [...value.declarations, ...[...retained.values()].filter(token => token.target.kind === 'concept')].sort((a, b) => a.start - b.start);
+      }
+      if (enabled('parameter') && !native?.nativeParameters) {
+        parameterTokens = value.parameters.filter(parameter => parameter.kind === 'value'
+          || (parameter.kind === 'unknown' && retained.get(parameter.head.start)?.target.kind === 'type')).map(parameter => parameter.name);
+      }
+    }
+    const signature = `${document.uri.toString()}\n${tokens.map(token => `${token.start}:${token.end}`).join(',')}`;
+    if (painted.get(editor) !== signature) {
+      painted.set(editor, signature);
+      editor.setDecorations(decoration, tokens.map(token => range(document, token)));
+    }
+    const parameterSignature = `${document.uri.toString()}\n${parameterTokens.map(token => `${token.start}:${token.end}`).join(',')}`;
+    if (parameterDecoration && parametersPainted.get(editor) !== parameterSignature) {
+      parametersPainted.set(editor, parameterSignature);
+      editor.setDecorations(parameterDecoration, parameterTokens.map(token => range(document, token)));
+    }
+  }
+  function moved(token, changes) {
+    let shift = 0;
+    for (const change of changes || []) {
+      const start = change.rangeOffset, end = start + change.rangeLength;
+      if (end <= token.start) shift += change.text.length - change.rangeLength;
+      else if (start < token.end) return undefined;
+    }
+    return { ...token, start: token.start + shift, end: token.end + shift };
+  }
+  function trackChanges(event) {
+    const changedUri = event.document.uri.toString();
+    for (const [document, entries] of confirmed) {
+      const retained = new Map();
+      for (const mark of entries.values()) {
+        let next = document === event.document ? moved(mark, event.contentChanges) : mark;
+        if (!next) continue;
+        if (next.target.uri === changedUri) {
+          const target = moved(next.target, event.contentChanges);
+          const declarations = next.target.kind === 'type' ? parsed(event.document).typeDeclarations : parsed(event.document).declarations;
+          const declaration = target && declarations.find(token => token.start === target.start && token.end === target.end && token.text === target.text);
+          if (!declaration) continue;
+          next = { ...next, target: { ...target, ...declaration } };
+        }
+        retained.set(next.start, next);
+      }
+      confirmed.set(document, retained);
+    }
   }
   async function resolve(document, token) {
     const cacheKey = key(document, token);
@@ -97,22 +249,31 @@ function registerConceptHighlighting(vscode, color) {
       try {
         const definitions = await definitionAt(document.uri, document.positionAt(token.start));
         for (const target of definitions || []) {
-          if (disposed || cacheGeneration !== epoch) return false;
+          if (disposed || cacheGeneration !== epoch) return undefined;
           const uri = target.targetUri || target.uri;
           const selection = target.targetSelectionRange || target.range;
           if (!uri || !selection) continue;
           const definition = await vscode.workspace.openTextDocument(uri);
           const start = definition.offsetAt(selection.start), end = definition.offsetAt(selection.end);
-          if (parsed(definition).declarations.some(value => value.text === token.text
-            && start <= value.end && end >= value.keywordStart)) {
-            if (cacheGeneration === epoch) results.set(cacheKey, true);
-            return true;
+          const declaration = parsed(definition).declarations.find(value => value.text === token.text
+            && start <= value.end && end >= value.keywordStart);
+          if (declaration) {
+            const result = { uri: uri.toString(), ...declaration, kind: 'concept' };
+            if (cacheGeneration === epoch) results.set(cacheKey, result);
+            return result;
+          }
+          const type = parsed(definition).typeDeclarations.find(value => value.text === token.text
+            && start <= value.end && end >= value.keywordStart);
+          if (type) {
+            const result = { uri: uri.toString(), ...type, kind: 'type' };
+            if (cacheGeneration === epoch) results.set(cacheKey, result);
+            return result;
           }
         }
         if (definitions?.length && cacheGeneration === epoch) results.set(cacheKey, false);
         // Retry unresolved names on later editor events while the provider starts.
-        return false;
-      } catch { return false; }
+        return definitions?.length ? false : undefined;
+      } catch { return undefined; }
     })();
     pending.set(cacheKey, task);
     void task.finally(() => { if (pending.get(cacheKey) === task) pending.delete(cacheKey); });
@@ -125,25 +286,34 @@ function registerConceptHighlighting(vscode, color) {
       if (disposed || generation !== epoch) return;
       const document = editor.document;
       if (!enabled() || document.languageId !== 'cpp') {
-        editor.setDecorations(decoration, []);
+        paint(editor);
         continue;
       }
       const version = document.version;
+      const native = await hasNativeConcepts(document);
+      if (disposed || generation !== epoch || document.version !== version || !enabled()) return;
+      if (native && (!enabled('parameter') || nativeSupport.get(document.uri.toString())?.nativeParameters)) { paint(editor); continue; }
       const value = parsed(document);
       const visible = token => editor.visibleRanges.some(view => view.intersection(range(document, token)));
-      const candidates = value.candidates.filter(visible).slice(0, 64);
-      const found = [...value.declarations.filter(visible), ...candidates.filter(token => results.get(key(document, token)))].map(token => range(document, token));
-      editor.setDecorations(decoration, found);
+      const needed = token => (enabled('concept') && !native)
+        || (enabled('parameter') && !nativeSupport.get(document.uri.toString())?.nativeParameters
+          && value.parameters.some(parameter => parameter.kind === 'unknown' && parameter.head.start === token.start));
+      const candidates = value.candidates.filter(token => needed(token) && visible(token)).slice(0, 64);
+      candidates.forEach(token => { if (results.has(key(document, token))) remember(document, token, results.get(key(document, token))); });
+      paint(editor);
       const unknown = candidates.filter(token => !results.has(key(document, token)));
+      const resolved = [];
       // Resolve in small batches to avoid flooding a language server.
       for (let i = 0; i < unknown.length; i += 4) {
         if (disposed || generation !== epoch || document.version !== version || !enabled()) break;
         const batch = unknown.slice(i, i + 4);
-        const confirmed = await Promise.all(batch.map(token => resolve(document, token)));
+        const answers = await Promise.all(batch.map(token => resolve(document, token)));
         if (disposed || generation !== epoch || document.version !== version || !enabled()) break;
-        batch.forEach((token, index) => { if (confirmed[index]) found.push(range(document, token)); });
-        editor.setDecorations(decoration, found);
+        batch.forEach((token, index) => resolved.push([token, answers[index]]));
       }
+      if (disposed || generation !== epoch || document.version !== version || !enabled()) return;
+      resolved.forEach(([token, result]) => remember(document, token, result));
+      paint(editor);
     }
   }
   function schedule(invalidate = false) {
@@ -160,22 +330,40 @@ function registerConceptHighlighting(vscode, color) {
     vscode.window.onDidChangeTextEditorVisibleRanges(() => schedule()),
     vscode.window.onDidChangeActiveTextEditor(() => schedule()),
     vscode.workspace.onDidChangeTextDocument(event => {
-      if (analysisCache.has(event.document)) schedule(true);
+      if (analysisCache.has(event.document) || (event.document.languageId === 'cpp'
+          && vscode.window.visibleTextEditors.some(editor => editor.document === event.document))) {
+        trackChanges(event);
+        // Keep surviving ranges in place throughout asynchronous revalidation.
+        vscode.window.visibleTextEditors.forEach(paint);
+        schedule(true);
+      }
     }),
     vscode.workspace.onDidCloseTextDocument(document => {
-      if (analysisCache.has(document)) schedule(true);
+      const tracked = analysisCache.has(document) || nativeSupport.has(document.uri.toString());
+      confirmed.delete(document);
+      nativeSupport.delete(document.uri.toString());
+      if (tracked) schedule(true);
     }),
     vscode.workspace.onDidChangeConfiguration(event => {
-      if (event.affectsConfiguration('workbench.colorTheme') || event.affectsConfiguration('dark2026OneDarkPro.cppConceptHighlighting')) schedule();
+      if (['workbench.colorTheme', 'dark2026OneDarkPro.cppConceptHighlighting', 'dark2026OneDarkPro.cppTemplateParameterHighlighting', 'editor.semanticHighlighting.enabled', 'C_Cpp'].some(name => event.affectsConfiguration(name))) {
+        nativeSupport.clear();
+        vscode.window.visibleTextEditors.forEach(paint);
+        schedule(event.affectsConfiguration('C_Cpp'));
+      }
     }),
     vscode.languages.onDidChangeDiagnostics(event => {
       if (event.uris.some(uri => vscode.window.visibleTextEditors.some(editor => editor.document.uri.toString() === uri.toString()))) {
         // An index update can resolve earlier misses without discarding confirmed concepts.
         for (const [key, value] of results) if (!value) results.delete(key);
+        for (const uri of event.uris) {
+          const key = uri.toString();
+          if (!nativeSupport.get(key)?.native) nativeSupport.delete(key);
+        }
         schedule();
       }
     }),
   ];
+  subscriptions.push(vscode.extensions.onDidChange(() => { nativeSupport.clear(); schedule(true); }));
   schedule();
   return { dispose() {
     disposed = true;
@@ -184,9 +372,11 @@ function registerConceptHighlighting(vscode, color) {
     clearTimeout(timer);
     subscriptions.forEach(subscription => subscription.dispose());
     decoration.dispose();
+    parameterDecoration?.dispose();
     results.clear(); pending.clear();
+    confirmed.clear(); nativeSupport.clear();
     requests.splice(0).forEach(job => job.resolve([]));
   } };
 }
 
-module.exports = { analyze, registerConceptHighlighting };
+module.exports = { analyze, tokenizeCpp, registerConceptHighlighting };

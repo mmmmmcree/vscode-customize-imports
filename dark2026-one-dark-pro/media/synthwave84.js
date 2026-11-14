@@ -16,7 +16,8 @@
     '#7f848e': 'comment', '#5c6370': 'comment', '#e06c75': 'variable',
     '#98c379': 'string', '#d19a66': 'literal', '#c678dd': 'keyword',
     '#61afef': 'function', '#56b6c2': 'enum', '#e5c07b': 'type',
-    '#7da9c7': 'namespace', '#7ec8b5': 'concept',
+    '#9bbde0': 'namespace', '#7ec8b5': 'concept',
+    '#dca3c9': 'type', '#b9cc86': 'enum',
     '#f44747': 'diagnostic', '#be5046': 'diagnostic',
   };
   const colorContext = document.createElement('canvas').getContext('2d');

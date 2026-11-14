@@ -2,7 +2,7 @@
   "name": "dark2026-one-dark-pro",
   "displayName": "Dark 2026 + One Dark Pro",
   "description": "Dark 2026 UI with One Dark Pro syntax and semantic highlighting.",
-  "version": "1.2.19",
+  "version": "1.2.26",
   "publisher": "local",
   "license": "MIT",
   "engines": {
@@ -27,7 +27,7 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "build": "python scripts/build_theme.py",
-    "check": "node --check src/extension.js && node --check src/cpp-concepts.js && node --check media/synthwave84.js",
+    "check": "node --check src/extension.js && node --check src/cpp-concepts.js && node --check src/cpp-enums.js && node --check media/synthwave84.js",
     "package": "python ../scripts/package_vsix.py ."
   },
   "contributes": {
@@ -43,7 +43,15 @@
       "properties": {
         "dark2026OneDarkPro.cppConceptHighlighting": {
           "type": "boolean", "default": true,
-          "description": "补充 C++ concept 声明和模板约束配色，通过语言服务的转到定义确认引用。"
+          "description": "语言服务不提供 concept 语义分类时，借助转到定义补充稳定着色；提供原生分类时自动让原生语义高亮接管。关闭后仅使用语法和语言服务原生配色。"
+        },
+        "dark2026OneDarkPro.cppEnumTypeHighlighting": {
+          "type": "boolean", "default": true,
+          "description": "语言服务只提供通用 type 分类时，为枚举类型名及其同文件引用补充配色，保留普通类名与关键字原色。提供原生 enum 分类时自动使用原生语义高亮。"
+        },
+        "dark2026OneDarkPro.cppTemplateParameterHighlighting": {
+          "type": "boolean", "default": true,
+          "description": "语言服务缺少 typeParameter 分类时，区分模板签名中的类型参数和值参数；命名类型通过转到定义确认，内置类型和 auto 直接按语法识别。复杂声明保留语言服务原色。"
         },
         "dark2026OneDarkPro.glowIntensity": {
           "type": "number", "default": 1, "minimum": 0, "maximum": 2,
