@@ -27,7 +27,8 @@ async function source(context) {
 
 function activate(context) {
   context.subscriptions.push(registerConceptHighlighting(vscode, theme.semanticTokenColors['concept:cpp'].foreground,
-    theme.tokenColors.find(rule => rule.name === 'C++ value template parameters').settings.foreground));
+    theme.tokenColors.find(rule => rule.name === 'C++ value template parameters').settings.foreground,
+    theme.semanticTokenColors['typeParameter:cpp'].foreground));
   context.subscriptions.push(registerEnumTypeHighlighting(vscode, theme.semanticTokenColors['enum:cpp'].foreground));
   async function apply(enabled) {
     const loader = vscode.extensions.getExtension('be5invis.vscode-custom-css');

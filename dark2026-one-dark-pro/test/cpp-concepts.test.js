@@ -49,7 +49,7 @@ function host(source, definitions, provider) {
     window: {
       visibleTextEditors: [editor],
       createTextEditorDecorationType: options => {
-        assert.ok(['#7ec8b5', '#e06c75'].includes(options.color)); assert.equal(options.rangeBehavior, 1);
+        assert.ok(['#7ec8b5', '#ffc28c', '#b8a9ff'].includes(options.color)); assert.equal(options.rangeBehavior, 1);
         return { color: options.color, dispose() { disposed = true; } };
       },
       onDidChangeVisibleTextEditors: on('editors'), onDidChangeTextEditorVisibleRanges: on('scroll'), onDidChangeActiveTextEditor: on('active'),
@@ -83,7 +83,8 @@ function host(source, definitions, provider) {
   return { active, editor, calls, legendCalls, values, vscode, listeners, history, disposed: () => disposed,
     emit: (name, event) => listeners.get(name)?.(event),
     words: () => editor.decorations.map(range => active.getText(range)),
-    parameterWords: () => (decorations.get('#e06c75') || []).map(range => active.getText(range)),
+    parameterWords: () => (decorations.get('#ffc28c') || []).map(range => active.getText(range)),
+    typeParameterWords: () => (decorations.get('#b8a9ff') || []).map(range => active.getText(range)),
   };
 }
 
@@ -116,6 +117,86 @@ template <dispatch_source_c Inputs, typename Router> void run();`;
   assert.equal(source.slice(parsed.candidates[0].start, parsed.candidates[0].end), 'dispatch_source_c');
 });
 
+test('concept candidates include boolean expressions, requires clauses, compound requirements and constrained auto', () => {
+  const source = `template<queue_c Queue> void drain() {
+    if constexpr (deque_c<Queue>) { pop(); }
+    constexpr bool check = ns::queue_c<Queue> && !ns::deque_c<Queue>;
+    static_assert((ns::queue_c<Queue>));
+  }
+  template<class T> requires ns::queue_c<T> void run();
+  template<class T> concept Nested = ns::queue_c<T> && requires(T x) {
+    { x.read() } -> std::same_as<int>;
+    requires ns::deque_c<T>;
+  };
+  std::integral auto value = 1;
+  void abbreviated(ns::queue_c auto& queue);
+  auto converted = static_cast<int>(value);
+  // FakeComment<int>
+  #define MACRO FakeMacro<int>
+  const char* text = "FakeString<int>";`;
+  const parsed = analyze(source);
+  assert.deepEqual(parsed.candidates.map(token => token.text), [
+    'queue_c', 'deque_c', 'queue_c', 'deque_c', 'queue_c', 'queue_c',
+    'queue_c', 'same_as', 'deque_c', 'integral', 'queue_c',
+  ]);
+  assert.equal(new Set(parsed.candidates.map(token => token.start)).size, parsed.candidates.length,
+    'A constrained template-id must not produce duplicate requests');
+  for (const token of parsed.candidates) assert.equal(source.slice(token.start, token.end), token.text);
+});
+
+test('drain-style if constexpr and other concept expressions get the same color as template constraints', async t => {
+  const header = document('queue-concepts.hpp', `namespace lcf::async {
+    template<class T> concept queue_c = true;
+    template<class T> concept deque_c = true;
+    template<class T> struct Concrete {};
+    template<class T> constexpr bool variable_c = true;
+  }`);
+  const source = `template<queue_c Queue> void drain() {
+    if constexpr (deque_c<Queue>) {}
+    if constexpr (lcf::async::deque_c<Queue>) {}
+    static_assert(queue_c<Queue>);
+    Concrete<Queue> object;
+    if constexpr (variable_c<Queue>) {}
+  }
+  template<class T> requires queue_c<T> void constrained();
+  void abbreviated(queue_c auto& value);`;
+  const state = host(source, [header], async (doc, position) => {
+    const name = doc.getText().slice(doc.offsetAt(position)).match(/^\w+/)[0];
+    return [{ targetUri: header.uri, targetSelectionRange: header.range(name) }];
+  });
+  const subscription = registerConceptHighlighting(state.vscode, '#7ec8b5');
+  t.after(() => subscription.dispose());
+  const expected = ['queue_c', 'deque_c', 'deque_c', 'queue_c', 'queue_c', 'queue_c'];
+  await until(() => state.words().length === expected.length);
+  assert.deepEqual(state.words(), expected);
+  assert.equal(state.calls.length, 8);
+  state.emit('scroll');
+  await delay(300);
+  assert.equal(state.calls.length, 8, 'All expression and concrete-template results are cached');
+  const start = state.active.getText().indexOf('deque_c<Queue>');
+  state.emit('text', state.active.edit(start, 'deque_c'.length, 'Concrete'));
+  assert.equal(state.words().filter(word => word === 'deque_c').length, 1,
+    'Editing the expression removes its mark immediately without recoloring the replacement');
+  await until(() => state.calls.length === 16);
+  await delay(30);
+  assert.deepEqual(state.words(), expected.filter((_, index) => index !== 1));
+});
+
+test('expression-only candidates do not add definition requests when concept fallback is disabled or native', async t => {
+  const header = document('types.hpp', 'struct Concrete {};');
+  for (const native of [false, true]) {
+    const state = host('if constexpr (deque_c<Queue>) {} Concrete<Queue> x; void f(queue_c auto);', [header]);
+    state.values.cppConceptHighlighting = native;
+    state.values.nativeConceptTokens = native;
+    const subscription = registerConceptHighlighting(state.vscode, '#7ec8b5', '#ffc28c');
+    t.after(() => subscription.dispose());
+    await until(() => state.legendCalls.length === 1);
+    await delay(30);
+    assert.equal(state.calls.length, 0);
+    assert.deepEqual(state.words(), []);
+  }
+});
+
 test('template parameter syntax distinguishes certain kinds and leaves named constraints ambiguous', () => {
   const source = `template <ns::queue_c<int>... Queues, DrainDirection direction = from_front,
     typename T, class... Ts, int Count = (1 < 2), auto Value, const Color& Ref,
@@ -129,72 +210,78 @@ test('template parameter syntax distinguishes certain kinds and leaves named con
   assert.equal(analyze('// template<int Fake>\nconst char* s = "template<int AlsoFake>";').parameters.length, 0);
 });
 
-test('a constrained Queue stays a type while direction confirmed as an enum value gets parameter color', async t => {
+test('template type and value parameters get distinct colors without recoloring ordinary classes or variables', async t => {
   const header = document('types.hpp', 'template<class T> concept queue_c = true;\nenum class DrainDirection { from_front };');
-  const state = host('template<queue_c Queue, DrainDirection direction = from_front> class DrainView {};', [header], async (doc, position) => {
+  const state = host('template<queue_c Queue, DrainDirection direction = from_front, typename T, class... Ts> class DrainView {}; int ordinary;', [header], async (doc, position) => {
     const name = doc.getText().slice(doc.offsetAt(position)).match(/^\w+/)[0];
     return [{ targetUri: header.uri, targetSelectionRange: header.range(name) }];
   });
-  const subscription = registerConceptHighlighting(state.vscode, '#7ec8b5', '#e06c75');
+  const subscription = registerConceptHighlighting(state.vscode, '#7ec8b5', '#ffc28c', '#b8a9ff');
   t.after(() => subscription.dispose());
   await until(() => state.parameterWords().includes('direction'));
   assert.deepEqual(state.words(), ['queue_c']);
   assert.deepEqual(state.parameterWords(), ['direction']);
+  assert.deepEqual(state.typeParameterWords(), ['Queue', 'T', 'Ts']);
   assert.equal(state.calls.length, 2, 'Concept and value classification share one definition request per head');
   state.emit('scroll');
   await delay(300);
   assert.equal(state.calls.length, 2);
-  assert.equal(state.history.get('#e06c75').length, 2, 'Scrolling leaves stable parameter decorations in place');
+  assert.equal(state.history.get('#ffc28c').length, 2, 'Scrolling leaves stable parameter decorations in place');
+  assert.equal(state.history.get('#b8a9ff').length, 2, 'Type parameters also keep stable decorations');
 });
 
 test('builtin value parameters need no definition queries and complex declarators retain native colors', async t => {
   const state = host('template<int Count, auto Value, class T, void (*Fn)(int)> void f();', []);
-  const subscription = registerConceptHighlighting(state.vscode, '#7ec8b5', '#e06c75');
+  const subscription = registerConceptHighlighting(state.vscode, '#7ec8b5', '#ffc28c');
   t.after(() => subscription.dispose());
   await until(() => state.parameterWords().length === 2);
   assert.deepEqual(state.parameterWords(), ['Count', 'Value']);
   assert.equal(state.calls.length, 0);
 });
 
-test('native parameter classification bypasses the template fallback without suppressing concept fallback', async t => {
+test('native typeParameter classification takes over types while value parameters keep their distinct color', async t => {
   const header = document('concepts.hpp', 'template<class T> concept queue_c = true;');
   const state = host('template<queue_c Queue, int Count> void f();', [header], async () => [{ uri: header.uri, range: header.range('queue_c') }]);
   state.values.nativeParameterTokens = true;
-  const subscription = registerConceptHighlighting(state.vscode, '#7ec8b5', '#e06c75');
+  const subscription = registerConceptHighlighting(state.vscode, '#7ec8b5', '#ffc28c', '#b8a9ff');
   t.after(() => subscription.dispose());
   await until(() => state.words().includes('queue_c'));
-  assert.deepEqual(state.parameterWords(), []);
+  assert.deepEqual(state.parameterWords(), ['Count']);
+  assert.deepEqual(state.typeParameterWords(), []);
   assert.equal(state.calls.length, 1);
 });
 
-test('template fallback remains independent of concept coloring and hands over to a native provider', async t => {
+test('template fallback remains independent of concept coloring and native types do not suppress value colors', async t => {
   const header = document('types.hpp', 'enum class DrainDirection { from_front };');
-  const state = host('template<DrainDirection direction = from_front, int Count> void f();', [header], async () => [{ uri: header.uri, range: header.range('DrainDirection') }]);
+  const state = host('template<DrainDirection direction = from_front, int Count, class T> void f();', [header], async () => [{ uri: header.uri, range: header.range('DrainDirection') }]);
   state.values.cppConceptHighlighting = false;
   state.values.nativeConceptTokens = true;
-  const subscription = registerConceptHighlighting(state.vscode, '#7ec8b5', '#e06c75');
+  const subscription = registerConceptHighlighting(state.vscode, '#7ec8b5', '#ffc28c', '#b8a9ff');
   t.after(() => subscription.dispose());
   await until(() => state.parameterWords().length === 2);
   assert.deepEqual(state.words(), []);
+  assert.deepEqual(state.typeParameterWords(), ['T']);
   state.values.cppTemplateParameterHighlighting = false;
   state.emit('configuration', { affectsConfiguration: name => name === 'dark2026OneDarkPro.cppTemplateParameterHighlighting' });
   await until(() => state.parameterWords().length === 0);
+  assert.deepEqual(state.typeParameterWords(), []);
   state.values.cppTemplateParameterHighlighting = true;
   state.values.nativeParameterTokens = true;
   state.emit('configuration', { affectsConfiguration: name => name === 'editor.semanticHighlighting.enabled' });
   await delay(300);
-  assert.deepEqual(state.parameterWords(), []);
+  assert.deepEqual(state.parameterWords(), ['direction', 'Count']);
+  assert.deepEqual(state.typeParameterWords(), []);
   assert.equal(state.calls.length, 1);
 });
 
-test('value parameter colors survive edits and slow indexing, but a type becoming a concept removes value color', async t => {
+test('parameter colors survive edits and slow indexing, and a changed constraint switches value to type color', async t => {
   const header = document('types.hpp', 'enum class DrainDirection { from_front };');
   let ready = true;
   const state = host('template<DrainDirection direction = from_front> void f();', [header], async () => {
     await delay(100);
     return ready ? [{ uri: header.uri, range: header.range('DrainDirection') }] : [];
   });
-  const subscription = registerConceptHighlighting(state.vscode, '#7ec8b5', '#e06c75');
+  const subscription = registerConceptHighlighting(state.vscode, '#7ec8b5', '#ffc28c', '#b8a9ff');
   t.after(() => subscription.dispose());
   await until(() => state.parameterWords().length === 1);
   ready = false;
@@ -210,6 +297,7 @@ test('value parameter colors survive edits and slow indexing, but a type becomin
   assert.deepEqual(state.parameterWords(), []);
   await until(() => state.words().includes('DrainDirection'));
   assert.deepEqual(state.parameterWords(), []);
+  assert.deepEqual(state.typeParameterWords(), ['direction']);
 });
 
 test('Go to Definition confirms a concept in a header and leaves a concrete non-type parameter alone', async t => {

@@ -2,7 +2,7 @@
 
 Dark 2026 界面与 One Dark Pro 完整的语法、语义高亮配色，附带 Synthwave 光晕。
 
-C++ 使用明亮雾蓝显示命名空间、黄色显示类和结构体名称、薄荷绿显示 concept 名称；枚举类型名为柔玫粉，与命名空间区分，枚举成员为浅黄绿色，与青色的 `void`／`bool` 和橙色的宏区分。`enum class MyClass` 中单独区分的是 `MyClass`，`enum`、`class`、`struct`、`constexpr`／`consteval`／`constinit`／`static_assert` 等关键字沿用 One Dark Pro 的紫色。类型查询、转换及基础类型为青色。完整分组见[配色说明](Dark2026-OneDarkPro.md)。C++ 规则独立维护在 `languages/cpp.json`，随主题构建合并，无需单独安装语言配色插件。
+C++ 使用明亮雾蓝显示命名空间、黄色显示类和结构体名称、薄荷绿显示 concept 名称；枚举类型名为柔玫粉，与命名空间区分，枚举成员为荧光绿 `#7CFF6B`，与 `#include` 文件名的字符串绿、青色的 `void`／`bool` 和橙色的宏区分。`enum class MyClass` 中单独区分的是 `MyClass`，`enum`、`class`、`struct`、`constexpr`／`consteval`／`constinit`／`static_assert` 等关键字沿用 One Dark Pro 的紫色。类型查询、转换及基础类型为青色。完整分组见[配色说明](Dark2026-OneDarkPro.md)。C++ 规则独立维护在 `languages/cpp.json`，随主题构建合并，无需单独安装语言配色插件。
 
 cpptools 1.35.6 的通用 `type` 分类会让枚举类型名与普通类名同色；仅添加 `enum:cpp` 主题规则不足以解决。扩展现在为显式枚举类型名提供稳定的补充前景色，并调用语言服务的符号高亮取得同文件引用：例如 `enum class DrainDirection` 中的 `DrainDirection` 及本文件引用使用柔玫粉，`class DrainView` 中的 `DrainView` 保留黄色。`enum`、`class` 关键字不涂成类型色，不按同名字符串全局替换。原生服务提供独立 `enum` 分类时自动交给原生语义高亮；可用 `dark2026OneDarkPro.cppEnumTypeHighlighting` 关闭补充层，不需要 Loader。
 
@@ -10,11 +10,11 @@ cpptools 1.35.6 的通用 `type` 分类会让枚举类型名与普通类名同�
 
 附带语法规则补充 concept 声明、复合约束中的 `noexcept` 和模块 `import`。Concept 优先使用当前语言服务的原生 `concept` 语义分类：通过 VS Code 的公开命令查询 token legend，支持时不添加装饰、不查询定义，也不注册会替换 C++ 语言服务的语义提供器。
 
-本机 `ms-vscode.cpptools` 1.35.6 的语义 token 没有独立的 `concept` 分类，因此仍需补充薄荷绿着色。对于 `template <dispatch_source_c Inputs, typename Router>`，补充层通过 cpptools 的“转到定义”确认 `dispatch_source_c` 是否为 concept；支持定义位于其他头文件。已确认范围随编辑移动，异步复核期间保持颜色，临时空结果不清除；复核完成后合并更新，相同范围不重复绘制，滚动后保留已确认范围。改名、删除定义或确认目标是普通类时会撤销旧色。`typename` 和普通的非类型模板参数保持各自配色。
+本机 `ms-vscode.cpptools` 1.35.6 的语义 token 没有独立的 `concept` 分类，因此仍需补充薄荷绿着色。补充层通过 cpptools 的“转到定义”确认模板约束、concept 表达式及受约束 `auto` 中的名字，覆盖 `template <dispatch_source_c Inputs, typename Router>`、函数体内的 `if constexpr (deque_c<Queue>)`、`requires queue_c<T>`、复合约束与其他 concept 定义；支持限定名和定义位于其他头文件。已确认范围随编辑移动，异步复核期间保持颜色，临时空结果不清除；复核完成后合并更新，相同范围不重复绘制，滚动后保留已确认范围。改名、删除定义或确认目标是普通类时会撤销旧色。`typename` 和普通的非类型模板参数保持各自配色。
 
-此补充层仍是编辑器装饰，不是 cpptools 新增的原生语义分类；首次确认仍需等待语言服务。若只希望使用原生配色，设置 `"dark2026OneDarkPro.cppConceptHighlighting": false`，无需 Loader。没有独立 concept 分类时，部分引用会采用 cpptools 的通用类型颜色；提供 `concept` 分类的语言服务会通过主题原生语义规则显示薄荷绿。
+此补充层仍是编辑器装饰，不是 cpptools 新增的原生语义分类；首次确认仍需等待语言服务。普通类模板、函数模板和变量模板也可能成为候选，但定义未确认为 concept 时不改变其颜色，不按 `_c` 后缀猜测。若只希望使用原生配色，设置 `"dark2026OneDarkPro.cppConceptHighlighting": false`，无需 Loader。提供 `concept` 分类的语言服务会通过主题原生语义规则显示薄荷绿。
 
-模板签名也区分类型参数和值参数：`template <queue_c Queue, DrainDirection direction = from_front>` 中，`Queue` 保留类型金色，`direction` 使用参数珊瑚红 `#E06C75`；`queue_c` 为薄荷绿，`DrainDirection` 为枚举柔玫粉。命名头与 concept 补色共用一次转到定义查询，只有定义确认为普通类型后才为其值参数补色；不凭名字大小写或 `_c` 后缀判断。内置类型、`auto` 等明确的值参数直接按语法识别，函数指针等复杂声明保持原生配色。此补充只覆盖模板签名中的参数名，引用继续由语言服务处理；它沿用稳定范围、版本缓存和查询限流，可独立用 `dark2026OneDarkPro.cppTemplateParameterHighlighting` 关闭。服务提供原生 `typeParameter` 分类时自动接管。
+模板签名也区分类型参数和值参数：`template <queue_c Queue, DrainDirection direction = from_front>` 中，`Queue` 使用类型参数淡紫 `#B8A9FF`，`direction` 使用值参数杏橙 `#FFC28C`，分别区别于普通类的黄色和变量的珊瑚红；`queue_c` 为薄荷绿，`DrainDirection` 为枚举柔玫粉，`from_front` 为荧光绿。命名头与 concept 补色共用一次转到定义查询，确认为 concept 后为类型参数补色，确认为普通类型后为值参数补色；不凭名字大小写或 `_c` 后缀判断。`typename T`、`class T`、内置类型和 `auto` 等明确参数直接按语法识别，函数指针等复杂声明保持原生配色。此补充只覆盖模板签名中的参数名，引用继续由语言服务处理；它沿用稳定范围、版本缓存和查询限流，可独立用 `dark2026OneDarkPro.cppTemplateParameterHighlighting` 关闭。服务提供原生 `typeParameter` 分类时接管类型参数；值参数继续单独补色，避免与普通函数参数混色。两类模板参数的光晕也独立统计频次，基础强度分别为 0.40 和 0.28。
 
 从仓库根目录执行 `python scripts/install.py --plugin dark2026-one-dark-pro`。安装后按 `Ctrl+K Ctrl+T`，选择 **Dark 2026 + One Dark Pro**。
 
@@ -52,7 +52,9 @@ python scripts/build_theme.py
 python ../scripts/package_vsix.py .
 ```
 
-安装产物为 `dist/dark2026-one-dark-pro-1.2.26.vsix`。直接打包和安装不要求本机有 One Dark Pro 扩展；重新生成配色时才需要。
+安装产物为 `dist/dark2026-one-dark-pro-1.2.27.vsix`。直接打包和安装不要求本机有 One Dark Pro 扩展；重新生成配色时才需要。
+
+`1.2.27` 扩展 concept 补色到函数体、`requires`、concept 表达式和受约束 `auto`，修复 `if constexpr (deque_c<Queue>)` 仍为通用类型黄的问题。枚举成员改为荧光绿 `#7CFF6B`，模板类型参数与值参数分别使用淡紫 `#B8A9FF` 和杏橙 `#FFC28C`，同步语法、语义配色和光晕分组。
 
 `1.2.26` 将命名空间由 `#7DA9C7` 提亮为雾蓝 `#9BBDE0`，保留命名空间光晕强度；补充模板签名中类型参数与值参数的区分。枚举类型名仍为柔玫粉 `#DCA3C9`，编辑区光标与行高亮配色不变。
 
@@ -70,7 +72,7 @@ python ../scripts/package_vsix.py .
 
 特效在原生编辑器界面完成首帧绘制后加载，代码光晕只扫描 Monaco 的内联配色表。安装或更新后，执行一次启用或更新光晕命令，使当前特效资源和共用注入器生效。
 
-Concept 补充着色只查询可见的模板约束名字，每次最多 64 个候选、全局最多 4 个并发请求，变化后防抖 250 毫秒。文本分析与定义结果都有缓存，不扫描整个项目。滚动回已确认位置不需要重新着色；编辑时跟踪仍有效的引用与定义范围，后台重新确认。符号尚未被语言服务索引时，等待后续编辑器或诊断更新再重试。开发验证可在本目录运行 `npm test` 和 `npm run check`。
+Concept 补充着色只查询可见的模板约束、模板表达式和受约束 `auto` 候选，每次最多 64 个、全局最多 4 个并发请求，变化后防抖 250 毫秒。文本分析与定义结果都有缓存，不扫描整个项目。滚动回已确认位置不需要重新着色；编辑时跟踪仍有效的引用与定义范围，后台重新确认。符号尚未被语言服务索引时，等待后续编辑器或诊断更新再重试。开发验证可在本目录运行 `npm test` 和 `npm run check`。
 
 若旧版本出现 `Cannot load 'vscode-userdata:…/synthwave84.js'. Skipping.`，更新安装后先重新加载 VS Code，再执行一次启用或更新光晕命令。插件会把旧导入替换为 Loader 可读取的 `file:` 地址，按提示再次重载即可。
 

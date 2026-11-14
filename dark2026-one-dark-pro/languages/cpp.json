@@ -32,12 +32,17 @@
     {
       "name": "C++ enum members",
       "scope": "source.cpp variable.other.enummember",
-      "settings": { "foreground": "#b9cc86" }
+      "settings": { "foreground": "#7cff6b" }
+    },
+    {
+      "name": "C++ type template parameters",
+      "scope": "source.cpp entity.name.type.template",
+      "settings": { "foreground": "#b8a9ff" }
     },
     {
       "name": "C++ value template parameters",
       "scope": "source.cpp variable.parameter.template",
-      "settings": { "foreground": "#e06c75" }
+      "settings": { "foreground": "#ffc28c" }
     },
     {
       "name": "C++ concept identifiers",
@@ -115,8 +120,8 @@
     "class:cpp": { "foreground": "#e5c07b" },
     "struct:cpp": { "foreground": "#e5c07b" },
     "enum:cpp": { "foreground": "#dca3c9" },
-    "enumMember:cpp": { "foreground": "#b9cc86" },
+    "enumMember:cpp": { "foreground": "#7cff6b" },
     "concept:cpp": { "foreground": "#7ec8b5" },
-    "typeParameter:cpp": { "foreground": "#e5c07b" }
+    "typeParameter:cpp": { "foreground": "#b8a9ff" }
   }
 }

@@ -7,7 +7,8 @@
   const frequencyAware = options.frequencyAware !== false;
   const profiles = {
     text: 0.10, comment: 0.04, variable: 0.18, string: 0.24, literal: 0.34,
-    keyword: 0.40, namespace: 0.52, function: 0.52, enum: 0.72, concept: 0.78, type: 0.85, diagnostic: 0.55,
+    keyword: 0.40, namespace: 0.52, function: 0.52, enum: 0.72, concept: 0.78, type: 0.85,
+    typeParameter: 0.40, valueParameter: 0.28, diagnostic: 0.55,
   };
   // One Dark Pro token colors and our C++ colors identify role groups.
   // Every shadow still uses currentColor; no separate glow color palette is used.
@@ -17,7 +18,8 @@
     '#98c379': 'string', '#d19a66': 'literal', '#c678dd': 'keyword',
     '#61afef': 'function', '#56b6c2': 'enum', '#e5c07b': 'type',
     '#9bbde0': 'namespace', '#7ec8b5': 'concept',
-    '#dca3c9': 'type', '#b9cc86': 'enum',
+    '#dca3c9': 'type', '#7cff6b': 'enum',
+    '#b8a9ff': 'typeParameter', '#ffc28c': 'valueParameter',
     '#f44747': 'diagnostic', '#be5046': 'diagnostic',
   };
   const colorContext = document.createElement('canvas').getContext('2d');

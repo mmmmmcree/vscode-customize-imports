@@ -2,7 +2,7 @@
   "name": "dark2026-one-dark-pro",
   "displayName": "Dark 2026 + One Dark Pro",
   "description": "Dark 2026 UI with One Dark Pro syntax and semantic highlighting.",
-  "version": "1.2.26",
+  "version": "1.2.27",
   "publisher": "local",
   "license": "MIT",
   "engines": {
@@ -51,7 +51,7 @@
         },
         "dark2026OneDarkPro.cppTemplateParameterHighlighting": {
           "type": "boolean", "default": true,
-          "description": "语言服务缺少 typeParameter 分类时，区分模板签名中的类型参数和值参数；命名类型通过转到定义确认，内置类型和 auto 直接按语法识别。复杂声明保留语言服务原色。"
+          "description": "为模板签名中的类型参数和值参数分别补充淡紫与杏橙配色；命名约束通过转到定义确认，内置类型和 auto 直接按语法识别。类型参数优先使用原生 typeParameter 分类；值参数单独补色，复杂声明保留语言服务原色。"
         },
         "dark2026OneDarkPro.glowIntensity": {
           "type": "number", "default": 1, "minimum": 0, "maximum": 2,

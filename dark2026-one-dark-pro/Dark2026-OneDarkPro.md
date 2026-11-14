@@ -51,9 +51,11 @@ SCM 统计卡片 `.scm-lines-hover` 与原生图表卡片 `.history-item-hover` 
 | 命名空间 | `std`、`app` | 明亮雾蓝 `#9BBDE0` |
 | 类、结构体 | `Widget`、`Record` | 黄 `#E5C07B` |
 | 枚举类型名 | `enum class MyClass` 中的 `MyClass`、`State` | 柔玫粉 `#DCA3C9` |
-| 枚举成员／枚举常量 | `State::Idle`、`LegacyIdle` | 浅黄绿 `#B9CC86` |
+| 枚举成员／枚举常量 | `State::Idle`、`LegacyIdle` | 荧光绿 `#7CFF6B` |
 | 宏 | `#define LIMIT 8` 中的 `LIMIT` 及其引用 | 橙 `#D19A66` |
 | Concept 名称 | `Addable`、`std::same_as` | 薄荷绿 `#7EC8B5` |
+| 模板类型参数 | `typename T`、`queue_c Queue` 中的 `T`、`Queue` | 淡紫 `#B8A9FF` |
+| 模板值参数 | `int Count`、`DrainDirection direction` 中的 `Count`、`direction` | 杏橙 `#FFC28C` |
 | 约束和模板关键字 | `concept`、`requires`、`template`、`typename` | 紫 `#C678DD` |
 | 声明关键字与修饰符 | `enum`、`class`、`struct`、`noexcept`、`override`、`final`、`explicit`、`virtual`、`mutable`、`friend`、`const`、`thread_local` | 紫 `#C678DD` |
 | 文字逻辑运算符 | `not`、`and`、`or` | 紫 `#C678DD` |
@@ -66,7 +68,7 @@ SCM 统计卡片 `.scm-lines-hover` 与原生图表卡片 `.history-item-hover` 
 
 `noexcept` 在函数声明、`noexcept(...)` 表达式与复合要求中的颜色保持一致。`syntaxes/cpp-modern.tmLanguage.json` 补充内置语法缺少的 concept 声明名、复合要求中的 `noexcept` 和模块 `import` 分类，排除注释、字符串与预处理上下文。语法补充随扩展启用，其他主题按自己的规则显示这些 scope；上述自定义配色仅属于本主题的 C++ 规则。
 
-枚举类型名和成员同时配置 C++ 专属 TextMate 与 `enum:cpp`／`enumMember:cpp` 语义规则。区分作用于声明后的类型名和枚举成员，`enum class`、普通 `class` 及模板参数中的 `class` 关键字都保留紫色。成员声明即使没有语言服务也有浅黄绿色；跨作用域的枚举类型与成员引用需要语言服务提供准确语义分类。
+枚举类型名和成员同时配置 C++ 专属 TextMate 与 `enum:cpp`／`enumMember:cpp` 语义规则。区分作用于声明后的类型名和枚举成员，`enum class`、普通 `class` 及模板参数中的 `class` 关键字都保留紫色。成员声明即使没有语言服务也有荧光绿色，与 `#include` 文件名的字符串绿 `#98C379` 区分；跨作用域的枚举类型与成员引用需要语言服务提供准确语义分类。
 
 cpptools 1.35.6 的实际 legend 没有独立 `enum` 类型，会把这类名字交给通用 `type` 配色，从而覆盖语法层的枚举类型色。`src/cpp-enums.js` 为显式枚举类型名添加同色前景装饰，并使用公开命令 `vscode.executeDocumentHighlights` 获取当前文件中属于同一符号的范围，确保 `DrainDirection` 与普通类 `DrainView` 分色。只采用语言服务返回且文字范围吻合的引用，不把其他命名空间的同名类一起改色，也不改变关键字和枚举成员。
 
@@ -74,19 +76,19 @@ cpptools 1.35.6 的实际 legend 没有独立 `enum` 类型，会把这类名字
 
 `constexpr` 曾与宏同色，是本主题显式复用了橙色 `#D19A66`，并不表示语言服务把它归为宏。现在移除额外覆盖，沿用 One Dark Pro 的紫色关键字规则，宏继续使用橙色；不改变其声明的变量或函数名称配色。
 
-自定义色板保持 One Dark Pro 原有的类名黄、函数蓝、关键字紫、基础类型青、宏橙和字符串绿。命名空间使用明亮雾蓝，与后续类型名的明度更接近，Concept 保留薄荷绿；枚举类型名采用柔玫粉，避开命名空间所在的蓝色系，枚举成员用柔和黄绿拉开与宏的色差。关键字不再另拆颜色。颜色选择结合真实项目中的模板、约束、枚举和函数实现比较。
+自定义色板保持 One Dark Pro 原有的类名黄、函数蓝、关键字紫、基础类型青、宏橙和字符串绿。命名空间使用明亮雾蓝，与后续类型名的明度更接近，Concept 保留薄荷绿；枚举类型名采用柔玫粉，避开命名空间所在的蓝色系，枚举成员用荧光绿拉开与字符串、宏的色差。关键字不再另拆颜色。颜色选择结合真实项目中的模板、约束、枚举和函数实现比较。
 
-模板签名中的类型参数与值参数也分别着色。例如 `template <queue_c Queue, DrainDirection direction = from_front>` 的 `Queue` 是受约束的类型参数，保留类型金色；`direction` 是枚举类型的值参数，采用 One Dark Pro 珊瑚红 `#E06C75`。`queue_c` 和 `DrainDirection` 仍按 concept、枚举类型各自着色。
+模板签名中的类型参数与值参数也分别着色。例如 `template <queue_c Queue, DrainDirection direction = from_front>` 的 `Queue` 是受约束的类型参数，使用淡紫 `#B8A9FF`；`direction` 是枚举类型的值参数，使用杏橙 `#FFC28C`，分别区别于普通类名黄 `#E5C07B` 与变量珊瑚红 `#E06C75`。`queue_c` 和 `DrainDirection` 仍按 concept、枚举类型各自着色，`from_front` 为荧光绿。
 
-内置语法与 Better C++ Syntax 会把这两类参数名都标为 `entity.name.type.template`。`src/cpp-concepts.js` 复用同一批转到定义查询确认模板开头的命名符号：确认为 concept 时保留类型参数色，确认为普通类型、枚举或直接别名时才为值参数名补色。内置类型、`auto`、引用等明确的值参数按语法直接识别，复杂的函数指针等声明不强行改色。只覆盖模板签名中的参数名，其引用继续交给语言服务；这仍是装饰补色，首次确认需要等待索引。`dark2026OneDarkPro.cppTemplateParameterHighlighting` 可独立关闭；提供原生 `typeParameter` 分类时自动退让。不注册替代语义提供器，也不额外请求完整语义 token 流。
+内置语法与 Better C++ Syntax 会把这两类参数名都标为 `entity.name.type.template`，主题将该 scope 及原生 `typeParameter:cpp` 设为淡紫。`src/cpp-concepts.js` 复用同一批转到定义查询确认模板开头的命名符号：确认为 concept 时为类型参数补淡紫，确认为普通类型、枚举或直接别名时为值参数名补杏橙。`typename T`、`class T`、内置类型、`auto`、引用等明确参数按语法直接识别，复杂的函数指针等声明不强行改色。只覆盖模板签名中的参数名，其引用继续交给语言服务；这仍是装饰补色，首次确认需要等待索引。`dark2026OneDarkPro.cppTemplateParameterHighlighting` 可独立关闭；提供原生 `typeParameter` 分类时接管类型参数，值参数继续补色以区分通用 `parameter`。不注册替代语义提供器，也不额外请求完整语义 token 流。
 
 Concept 名称的语义规则为 `concept:cpp`，已通过本机 clangd 的实际语义 token 验证声明和引用。扩展先通过公开命令 `vscode.provideDocumentSemanticTokensLegend` 检查当前语言服务是否提供 `concept` 类型；支持时完全交给原生语义高亮，不添加装饰、不请求定义。扩展不注册新的语义提供器，因为同一文档的完整语义提供器由 VS Code 选择而非自动叠加，替换 cpptools 会丢失其其他分类。
 
-本机 C/C++ 1.35.6 的实际 token legend 没有独立 concept 类型，因此仍需补充着色：直接识别声明处的 `concept Name`，并对 `template <dispatch_source_c Inputs, typename Router>`、限定名和约束参数包等模板参数开头的名字调用 cpptools 的“转到定义”。目标确实是 `concept` 声明时，用编辑器装饰显示薄荷绿，覆盖语言服务泛化的类型色；目标是普通类、枚举等具体类型时保持原色。通过解析定义文件也能识别其他头文件中的 concept。此补充层复用了语言服务的符号识别，但不是原生语义 token。
+本机 C/C++ 1.35.6 的实际 token legend 没有独立 concept 类型，因此仍需补充着色：直接识别声明处的 `concept Name`，并对模板约束、各位置的 `Name<…>` 和受约束 `Name auto` 调用 cpptools 的“转到定义”。覆盖 `template <dispatch_source_c Inputs, typename Router>`、函数体内的 `if constexpr (deque_c<Queue>)`、布尔表达式、`requires queue_c<T>`、复合要求、concept 定义以及限定名和参数包。目标确实是 `concept` 声明时，用编辑器装饰显示薄荷绿，覆盖语言服务泛化的类型色；目标是普通类、函数模板或变量模板时保持原色。通过解析定义文件也能识别其他头文件中的 concept。此补充层复用了语言服务的符号识别，但不是原生语义 token。
 
-补充着色不根据 `_c` 等后缀猜测，不把所有 `template<Name Value>` 都当成 concept。它只在本主题和 C++ 编辑器中运行，不依赖 Loader；可用 `dark2026OneDarkPro.cppConceptHighlighting` 关闭。跨文件识别需要语言服务能正常转到定义；项目尚未配置或索引未就绪时，不会强行给未确认的引用上色。模板参数以外的 concept 引用仍由语言服务的语义分类处理。
+补充着色不根据 `_c` 等后缀猜测，不把所有 `template<Name Value>` 或 `Name<…>` 都当成 concept。它只在本主题和 C++ 编辑器中运行，不依赖 Loader；可用 `dark2026OneDarkPro.cppConceptHighlighting` 关闭。跨文件识别需要语言服务能正常转到定义；项目尚未配置或索引未就绪时，不会强行给未确认的引用上色。
 
-只分析可见编辑器中的模板约束候选，每次最多查询 64 个，所有更新合计最多 4 个查询同时运行。变更后防抖 250 毫秒，文本分析按文档版本缓存。已确认的装饰范围随编辑位移，不因重新确认而先清空；暂时没有定义结果时保留已确认颜色，确认非 concept、引用被改名或定义被删除时移除。每次复核完成后合并提交，相同范围不重复绘制，已确认的屏幕外范围也会保留以避免滚动回去重新上色。无关文件的诊断不会触发查询；定义文件修改后使查询缓存失效，并跟踪仍有效的定义位置。编辑期间过期的异步结果不会应用，也不扫描整个工作区。测试覆盖跨文件定义、同名类、原生语义接管、慢查询、临时索引缺失、范围移动、主题开关、可见范围与并发限制，在插件目录运行 `npm test`。
+只查询可见编辑器中的模板约束、模板表达式和受约束 `auto` 候选，每次最多 64 个，所有更新合计最多 4 个查询同时运行。同一位置只产生一个候选，普通模板的非 concept 结果也会缓存。变更后防抖 250 毫秒，文本分析按文档版本缓存。已确认的装饰范围随编辑位移，不因重新确认而先清空；暂时没有定义结果时保留已确认颜色，确认非 concept、引用被改名或定义被删除时移除。每次复核完成后合并提交，相同范围不重复绘制，已确认的屏幕外范围也会保留以避免滚动回去重新上色。无关文件的诊断不会触发查询；定义文件修改后使查询缓存失效，并跟踪仍有效的定义位置。编辑期间过期的异步结果不会应用，也不扫描整个工作区。测试覆盖跨文件定义、同名类、原生语义接管、慢查询、临时索引缺失、范围移动、主题开关、可见范围与并发限制，在插件目录运行 `npm test`。
 
 命名空间声明、别名与 using 指令在没有语言服务时也可区分；`app::Widget::method()` 等限定名中的命名空间与类需要 C++ 语言服务的语义高亮来准确识别，避免把类名也按命名空间改色。
 
@@ -112,15 +114,17 @@ python scripts/install.py --plugin dark2026-one-dark-pro
 | 普通文字、标点 | 0.10；彩色括号固定使用更弱的光晕 |
 | 变量、属性 | 0.18 |
 | 字符串 | 0.24 |
+| C++ 模板值参数（杏橙） | 0.28 |
 | 数值、字面量 | 0.34 |
 | 关键字 | 0.40 |
+| C++ 模板类型参数（淡紫） | 0.40 |
 | 函数 | 0.52 |
 | C++ 命名空间（雾蓝色） | 0.52，与函数一致 |
 | 枚举成员与青色类型组 | 0.72 |
 | C++ concept（薄荷绿） | 0.78 |
 | 类、类型与柔玫粉枚举类型组 | 0.85 |
 
-在基础强度上，默认按当前可见代码各组的出现频次乘以 0.65–1.35 的系数，频次越高系数越小。这样大量变量和符号不会淹没少数类名。分类来自主题配色，不是完整的语法解析；同色的语法类型会共用一个组。青色类型查询与浅黄绿枚举成员共组，柔玫粉枚举类型名与黄色类名共用类型组，编译期与其他紫色关键字共组，橙色宏与数值字面量共组，蓝色模块关键字与蓝色函数共组。Concept 的薄荷绿有独立频次统计。统计的是 Monaco 已渲染的可见代码，不是整个文件或项目；变化后等待 250 毫秒再合并更新，最多扫描 5000 个 token，不逐帧分析文本。
+在基础强度上，默认按当前可见代码各组的出现频次乘以 0.65–1.35 的系数，频次越高系数越小。这样大量变量和符号不会淹没少数类名。分类来自主题配色，不是完整的语法解析；同色的语法类型会共用一个组。青色类型查询与荧光绿枚举成员共组，柔玫粉枚举类型名与黄色类名共用类型组，编译期与其他紫色关键字共组，橙色宏与数值字面量共组，蓝色模块关键字与蓝色函数共组。Concept 的薄荷绿有独立频次统计。统计的是 Monaco 已渲染的可见代码，不是整个文件或项目；变化后等待 250 毫秒再合并更新，最多扫描 5000 个 token，不逐帧分析文本。
 
 用 `dark2026OneDarkPro.glowIntensity`（默认 1，范围 0–2）调整代码光晕总强度，用 `dark2026OneDarkPro.frequencyAware`（默认 true）开关频次调整。修改后运行启用或更新光晕命令；关闭频次调整后仍保留各组不同的基础强度。颜色始终来自 `currentColor`，没有恢复独立手工泛光色板。
 
@@ -143,7 +147,7 @@ python scripts/build_theme.py
 python ../scripts/package_vsix.py .
 ```
 
-第一个步骤需要本机已安装 Dark 2026 和 One Dark Pro，并自动合并 `theme-overrides.json` 与 `languages/*.json` 的界面颜色、TextMate 和语义定制；语言规则按文件名排序加载。第二个步骤使用仓库共用的 Python VSIX 打包器，将 `package.json.files` 白名单中的主题、语法补充、脚本、样式和图标连同文档、许可证及共用更新模块打包，生成 `dist/dark2026-one-dark-pro-1.2.26.vsix`。它不需要重新读取源主题，也不需要 pip 包、npm 依赖或 vsce。
+第一个步骤需要本机已安装 Dark 2026 和 One Dark Pro，并自动合并 `theme-overrides.json` 与 `languages/*.json` 的界面颜色、TextMate 和语义定制；语言规则按文件名排序加载。第二个步骤使用仓库共用的 Python VSIX 打包器，将 `package.json.files` 白名单中的主题、语法补充、脚本、样式和图标连同文档、许可证及共用更新模块打包，生成 `dist/dark2026-one-dark-pro-1.2.27.vsix`。它不需要重新读取源主题，也不需要 pip 包、npm 依赖或 vsce。
 
 自动检测使用 PATH 中的 `code` 和用户目录的 `.vscode/extensions`。自定义位置可在本插件目录指定：
 

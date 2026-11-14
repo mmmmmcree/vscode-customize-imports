@@ -1,9 +1,11 @@
 'use strict';
 
 // Prefer the active language service's native concept tokens. C/C++ versions
-// without that classification use Go to Definition to confirm constrained names.
+// without that classification use Go to Definition to confirm constrained names
+// and concept-ids in expressions, requires clauses and placeholder constraints.
 const keywords = new Set(('alignas auto bool char char8_t char16_t char32_t class const double enum '
   + 'float int long short signed struct template typename unsigned void volatile wchar_t').split(' '));
+const templateOperators = new Set(['operator', 'static_cast', 'dynamic_cast', 'const_cast', 'reinterpret_cast']);
 
 function tokenizeCpp(text) {
   // Preserve UTF-16 offsets while hiding comments, literals and preprocessor lines.
@@ -20,7 +22,7 @@ function analyze(text) {
   const tokens = tokenizeCpp(text);
   const declarations = [];
   const typeDeclarations = [];
-  const candidates = [];
+  const candidates = new Map();
   const parameters = [];
   const angles = [];
   let parens = 0, brackets = 0, braces = 0;
@@ -28,6 +30,13 @@ function analyze(text) {
   const nesting = () => `${parens}/${brackets}/${braces}`;
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i], word = token.text;
+    // A concept-id can appear anywhere a bool expression can, including inside
+    // function bodies and other concept definitions. Concrete template-ids also
+    // match here; only a confirmed concept declaration receives concept color.
+    if (identifier(word) && !keywords.has(word) && !templateOperators.has(word)
+        && (tokens[i + 1]?.text === '<' || tokens[i + 1]?.text === 'auto')) {
+      candidates.set(token.start, token);
+    }
     if (word === 'concept' && identifier(tokens[i + 1]?.text)) {
       declarations.push({ ...tokens[i + 1], keywordStart: token.start });
     }
@@ -43,7 +52,7 @@ function analyze(text) {
       let nameIndex = word === '::' ? i + 1 : i;
       if (identifier(tokens[nameIndex]?.text) && !keywords.has(tokens[nameIndex].text)) {
         while (tokens[nameIndex + 1]?.text === '::' && identifier(tokens[nameIndex + 2]?.text)) nameIndex += 2;
-        candidates.push(tokens[nameIndex]);
+        candidates.set(tokens[nameIndex].start, tokens[nameIndex]);
       }
     }
     if (word === '(') parens++;
@@ -64,7 +73,7 @@ function analyze(text) {
       if (word === '>') angles.pop();
     }
   }
-  return { declarations, typeDeclarations, candidates, parameters };
+  return { declarations, typeDeclarations, candidates: [...candidates.values()].sort((a, b) => a.start - b.start), parameters };
 }
 
 // Only simple declarators are handled here. An identifier followed by an
@@ -104,15 +113,18 @@ function templateParameter(tokens) {
   return { name: tokens[i], head, kind: value ? 'value' : 'unknown' };
 }
 
-function registerConceptHighlighting(vscode, color, parameterColor) {
+function registerConceptHighlighting(vscode, color, parameterColor, typeParameterColor) {
   const decoration = vscode.window.createTextEditorDecorationType({ color,
     rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed });
   const parameterDecoration = parameterColor && vscode.window.createTextEditorDecorationType({ color: parameterColor,
+    rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed });
+  const typeParameterDecoration = typeParameterColor && vscode.window.createTextEditorDecorationType({ color: typeParameterColor,
     rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed });
   const analysisCache = new WeakMap();
   const confirmed = new Map();
   const painted = new WeakMap();
   const parametersPainted = new WeakMap();
+  const typeParametersPainted = new WeakMap();
   const nativeSupport = new Map();
   const results = new Map();
   const pending = new Map();
@@ -148,7 +160,7 @@ function registerConceptHighlighting(vscode, color, parameterColor) {
     if (vscode.workspace.getConfiguration('workbench').get('colorTheme') !== 'Dark 2026 + One Dark Pro') return false;
     const config = vscode.workspace.getConfiguration('dark2026OneDarkPro');
     const concepts = config.get('cppConceptHighlighting', true);
-    const parameters = Boolean(parameterDecoration) && config.get('cppTemplateParameterHighlighting', true);
+    const parameters = Boolean(parameterDecoration || typeParameterDecoration) && config.get('cppTemplateParameterHighlighting', true);
     return role === 'concept' ? concepts : role === 'parameter' ? parameters : concepts || parameters;
   }
   const range = (document, token) => new vscode.Range(document.positionAt(token.start), document.positionAt(token.end));
@@ -184,7 +196,7 @@ function registerConceptHighlighting(vscode, color, parameterColor) {
   function paint(editor) {
     const document = editor.document;
     const native = nativeSupport.get(document.uri.toString());
-    let tokens = [], parameterTokens = [];
+    let tokens = [], parameterTokens = [], typeParameterTokens = [];
     if (enabled() && document.languageId === 'cpp') {
       const value = parsed(document), candidates = new Map(value.candidates.map(token => [token.start, token]));
       const retained = marks(document);
@@ -196,9 +208,13 @@ function registerConceptHighlighting(vscode, color, parameterColor) {
       if (enabled('concept') && !native?.native) {
         tokens = [...value.declarations, ...[...retained.values()].filter(token => token.target.kind === 'concept')].sort((a, b) => a.start - b.start);
       }
-      if (enabled('parameter') && !native?.nativeParameters) {
+      if (enabled('parameter')) {
         parameterTokens = value.parameters.filter(parameter => parameter.kind === 'value'
           || (parameter.kind === 'unknown' && retained.get(parameter.head.start)?.target.kind === 'type')).map(parameter => parameter.name);
+        if (!native?.nativeParameters) {
+          typeParameterTokens = value.parameters.filter(parameter => parameter.kind === 'type'
+            || (parameter.kind === 'unknown' && retained.get(parameter.head.start)?.target.kind === 'concept')).map(parameter => parameter.name);
+        }
       }
     }
     const signature = `${document.uri.toString()}\n${tokens.map(token => `${token.start}:${token.end}`).join(',')}`;
@@ -210,6 +226,11 @@ function registerConceptHighlighting(vscode, color, parameterColor) {
     if (parameterDecoration && parametersPainted.get(editor) !== parameterSignature) {
       parametersPainted.set(editor, parameterSignature);
       editor.setDecorations(parameterDecoration, parameterTokens.map(token => range(document, token)));
+    }
+    const typeParameterSignature = `${document.uri.toString()}\n${typeParameterTokens.map(token => `${token.start}:${token.end}`).join(',')}`;
+    if (typeParameterDecoration && typeParametersPainted.get(editor) !== typeParameterSignature) {
+      typeParametersPainted.set(editor, typeParameterSignature);
+      editor.setDecorations(typeParameterDecoration, typeParameterTokens.map(token => range(document, token)));
     }
   }
   function moved(token, changes) {
@@ -292,11 +313,11 @@ function registerConceptHighlighting(vscode, color, parameterColor) {
       const version = document.version;
       const native = await hasNativeConcepts(document);
       if (disposed || generation !== epoch || document.version !== version || !enabled()) return;
-      if (native && (!enabled('parameter') || nativeSupport.get(document.uri.toString())?.nativeParameters)) { paint(editor); continue; }
+      if (native && !enabled('parameter')) { paint(editor); continue; }
       const value = parsed(document);
       const visible = token => editor.visibleRanges.some(view => view.intersection(range(document, token)));
       const needed = token => (enabled('concept') && !native)
-        || (enabled('parameter') && !nativeSupport.get(document.uri.toString())?.nativeParameters
+        || (enabled('parameter') && (parameterDecoration || !nativeSupport.get(document.uri.toString())?.nativeParameters)
           && value.parameters.some(parameter => parameter.kind === 'unknown' && parameter.head.start === token.start));
       const candidates = value.candidates.filter(token => needed(token) && visible(token)).slice(0, 64);
       candidates.forEach(token => { if (results.has(key(document, token))) remember(document, token, results.get(key(document, token))); });
@@ -373,6 +394,7 @@ function registerConceptHighlighting(vscode, color, parameterColor) {
     subscriptions.forEach(subscription => subscription.dispose());
     decoration.dispose();
     parameterDecoration?.dispose();
+    typeParameterDecoration?.dispose();
     results.clear(); pending.clear();
     confirmed.clear(); nativeSupport.clear();
     requests.splice(0).forEach(job => job.resolve([]));
